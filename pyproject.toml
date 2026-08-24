@@ -1,0 +1,51 @@
+[project]
+name = "quintara"
+version = "0.1.0"
+description = "Quintara local A-share weekly research application"
+readme = "README.md"
+license = { file = "LICENSE" }
+classifiers = ["Programming Language :: Python :: 3.12", "Operating System :: Microsoft :: Windows", "Operating System :: POSIX :: Linux"]
+authors = [
+    { name = "AFWEF_147", email = "olm_cse@hust.edu.cn" }
+]
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "baostock==0.9.3",
+    "lightgbm==4.6.0",
+    "numpy==2.3.3",
+    "pandas==2.3.2",
+    "pyside6>=6.7,<7",
+    "scipy==1.16.2",
+]
+
+[project.scripts]
+quintara = "quintara:main"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+exclude = ["docs/openspec/.agents"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ty.environment]
+python-version = "3.12"
+
+[build-system]
+requires = ["uv_build>=0.11.7,<0.12.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "hypothesis>=6.165.10",
+    "pytest>=9.1.1",
+    "ruff>=0.16.4",
+    "ty>=0.0.74",
+]
+release = ["pyinstaller>=6.10,<7"]
