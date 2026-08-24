@@ -51,7 +51,7 @@ jobs:
     runs-on: ubuntu-24.04
     container: ${{ matrix.image }}
     steps:
-      - run: apt-get update && apt-get install --yes binutils build-essential ca-certificates curl git libegl1 libxkbcommon-x11-0 libxcb-cursor0
+      - run: apt-get update && apt-get install --yes binutils build-essential ca-certificates curl git libegl1 libgl1 libglib2.0-0 libfontconfig1 libx11-xcb1 libxkbcommon-x11-0 libxcb-cursor0
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
         with: { version: "0.11.7" }
