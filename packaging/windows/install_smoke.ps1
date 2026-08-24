@@ -30,7 +30,8 @@ foreach ($path in @($gui, $cli, $uninstaller)) {
 $version = & $cli --version
 if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($version)) { throw "Installed CLI version failed" }
 $doctor = & $cli doctor --root $dataDir
-if ($LASTEXITCODE -ne 0 -or $doctor -notmatch '"os"') { throw "Installed CLI doctor failed" }
+$doctorText = ($doctor | Out-String)
+if ($LASTEXITCODE -ne 0 -or $doctorText -notmatch '"os"\s*:') { throw "Installed CLI doctor failed" }
 
 # Use a clean process snapshot to prove that the GUI PE subsystem is windowed.
 $before = @(Get-Process conhost, powershell, pwsh, WindowsTerminal -ErrorAction SilentlyContinue |
