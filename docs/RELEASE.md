@@ -21,10 +21,11 @@
 
 ## 已验证的远程运行
 
-以下运行针对已经过完整门禁的发布源提交 `c545db35aa2b2c3107c3fa42a777933a62ea902c`；本页随后只补充发布证据，不改变运行时代码：
+Quintara 0.1.0 的发布源提交为 `59bf5def9ca36d6957998b2b45a616c1237e48ed`：
 
-- Quintara CI：运行 `32692366429`，Ubuntu、Windows、OpenSpec 门禁全部通过。
-- Package smoke：运行 `32692371644`，Linux prefix/wheel 与 Windows PyInstaller/Inno Setup 全部通过。
+- Quintara CI：运行 [`32693975329`](https://github.com/Telecaster2147/quintara/actions/runs/32693975329)，Ubuntu、Windows、OpenSpec 门禁全部通过。
+- Package smoke：运行 [`32694000601`](https://github.com/Telecaster2147/quintara/actions/runs/32694000601)，Linux prefix/wheel 与 Windows PyInstaller/Inno Setup 全部通过。
+- GitHub Release：[`v0.1.0`](https://github.com/Telecaster2147/quintara/releases/tag/v0.1.0) 已发布 Windows 安装版、Windows 便携版、Linux x86-64 压缩包和 SHA-256 校验文件。
 
 ## 发布前人工复核
 
@@ -33,5 +34,5 @@
 - [x] PIT、CUSTOM、NON_PIT_FALLBACK 路线与固定 Top-5 权重在结果中可见。
 - [x] 版本检查默认关闭；诊断导出只写本地脱敏 JSON/ZIP。
 
-最终 SHA 与 Actions run ID 写入本页和 `dist/release-evidence.json` 后，才将 release candidate
-标记为可发布。
+本页只记录发布证据；运行时的机器可读证据由
+`dist/release-evidence.json` 随对应构建生成。
