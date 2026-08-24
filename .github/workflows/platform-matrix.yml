@@ -70,6 +70,9 @@ jobs:
 
   wslg-real-window:
     runs-on: [self-hosted, Windows, X64, WSLg, quintara-release]
+    # Keep the aggregate evidence job live even when this optional private
+    # runner is not registered for the repository.
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
       - shell: wsl-bash {0}
