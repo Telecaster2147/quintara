@@ -1,0 +1,67 @@
+name: Package smoke
+
+on:
+  workflow_dispatch:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  linux:
+    name: Linux package smoke
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.11.7"
+          enable-cache: true
+      - name: Install Qt runtime libraries (Linux)
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes libegl1 libxkbcommon-x11-0
+      - run: uv python install 3.12
+      - run: uv sync --locked --all-groups
+      - run: uv build
+      - run: uv run pytest -q --junitxml=dist/pytest.xml
+      - run: uv run python packaging/build_release.py
+      - run: uv run python packaging/sbom.py
+      - run: uv run python packaging/release_evidence.py
+      - run: QUINTARA_PREFIX="$RUNNER_TEMP/quintara-prefix" ./packaging/install_linux.sh
+      - run: "$RUNNER_TEMP/quintara-prefix/bin/quintara --version"
+      - run: "$RUNNER_TEMP/quintara-prefix/bin/quintara doctor --root $RUNNER_TEMP/quintara-bundle"
+      - run: uv venv /tmp/quintara-wheel-smoke
+      - run: uv pip install --python /tmp/quintara-wheel-smoke/bin/python dist/*.whl
+      - run: /tmp/quintara-wheel-smoke/bin/quintara --version
+      - run: QT_QPA_PLATFORM=offscreen timeout 15 /tmp/quintara-wheel-smoke/bin/quintara gui || test $? -eq 124
+      - uses: actions/upload-artifact@v4
+        with:
+          name: quintara-linux-${{ github.sha }}
+          path: dist/
+
+  windows:
+    name: Windows installer smoke
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.11.7"
+          enable-cache: true
+      - run: uv python install 3.12
+      - run: uv sync --locked --all-groups
+      - run: uv build
+      - run: uv run pytest -q --junitxml=dist/pytest.xml
+      - run: uv run python packaging/build_release.py
+      - run: uv run python packaging/sbom.py
+      - run: uv run python packaging/release_evidence.py
+      - run: .\dist\Quintara.exe --version
+      - run: .\dist\Quintara.exe doctor --root "$env:RUNNER_TEMP\quintara-bundle"
+      - run: choco install innosetup --yes --no-progress
+      - run: '& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" packaging\windows\Quintara.iss'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: quintara-windows-${{ github.sha }}
+          path: dist/

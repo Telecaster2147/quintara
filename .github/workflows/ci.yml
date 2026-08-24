@@ -1,0 +1,48 @@
+name: Quintara CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.11.7"
+          enable-cache: true
+      - name: Install Qt runtime libraries (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes libegl1 libxkbcommon-x11-0
+      - run: uv python install 3.12
+      - run: uv sync --locked --group dev
+      - run: uv run ruff check src tests
+      - run: uv run pytest
+      - run: uv run python packaging/typecheck.py
+      - run: uv run python -m quintara --version
+      - run: uv build
+
+  openspec:
+    name: OpenSpec validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --global @fission-ai/openspec@1.9.0
+      - run: openspec validate --strict --all
+        working-directory: docs/openspec/openspec
