@@ -41,9 +41,9 @@ var
 begin
   if CurUninstallStep = usUninstall then
   begin
-    { Automation can explicitly exercise the default preserve-data boundary
-      without waiting for a custom confirmation dialog. }
-    if CmdLineParamExists('/KEEPDATA') then
+    { Silent uninstall is the automation/default-preserve boundary.  Interactive
+      uninstall keeps the explicit two-step confirmation for local data. }
+    if WizardSilent then
       Exit;
     DataDir := ExpandConstant('{localappdata}\Quintara');
     if DirExists(DataDir) and
