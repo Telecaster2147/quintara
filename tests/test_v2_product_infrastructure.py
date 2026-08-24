@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import io
 import json
+import os
 from pathlib import Path
 
 import pandas as pd
@@ -194,7 +195,10 @@ def test_verified_content_root_migration_retains_source(app_root, tmp_path, monk
     assert Path(result["active_root"], "sentinel.txt").read_text(encoding="utf-8") == "local"
     assert result["source_retained"]
     assert paths.root.exists()
-    monkeypatch.setenv("XDG_DATA_HOME", str(paths.root.parent))
+    if os.name == "nt":
+        monkeypatch.setenv("LOCALAPPDATA", str(paths.root.parent))
+    else:
+        monkeypatch.setenv("XDG_DATA_HOME", str(paths.root.parent))
     assert AppPaths.discover().root == Path(result["active_root"])
     # Explicit roots remain deterministic and do not silently follow a redirect.
     assert AppPaths.discover(paths.root).root == paths.root
