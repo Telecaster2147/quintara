@@ -41,6 +41,10 @@ var
 begin
   if CurUninstallStep = usUninstall then
   begin
+    { Automation can explicitly exercise the default preserve-data boundary
+      without waiting for a custom confirmation dialog. }
+    if CmdLineParamExists('/KEEPDATA') then
+      Exit;
     DataDir := ExpandConstant('{localappdata}\Quintara');
     if DirExists(DataDir) and
        (MsgBox('是否同时删除 Quintara 的本地数据、模型和结果？默认选择“否”以便重新安装后继续使用。',

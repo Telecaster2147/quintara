@@ -74,7 +74,7 @@ $upgradeHash = (Get-FileHash $gui -Algorithm SHA256).Hash
 if (-not (Test-Path (Join-Path $dataDir "install-smoke.marker"))) { throw "Upgrade removed user data marker" }
 [QuintaraShell]::SHChangeNotify(0x08000000, 0x1000, [IntPtr]::Zero, [IntPtr]::Zero)
 
-$uninstall = Start-Process -FilePath $uninstaller -ArgumentList @("/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART") -Wait -PassThru
+$uninstall = Start-Process -FilePath $uninstaller -ArgumentList @("/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/KEEPDATA") -Wait -PassThru
 if ($uninstall.ExitCode -ne 0) { throw "Uninstaller returned $($uninstall.ExitCode)" }
 $preserved = Test-Path $defaultMarker
 if (Test-Path $defaultMarker) { Remove-Item -Force $defaultMarker }
