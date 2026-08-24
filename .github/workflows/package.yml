@@ -85,8 +85,8 @@ jobs:
       - run: uv run python packaging/legal_review.py
       - run: uv run python packaging/openspec_audit.py
       - run: uv run python packaging/candidate_gate.py
-      - run: .\dist\quintara-cli.exe --version
-      - run: .\dist\quintara-cli.exe doctor --root "$env:RUNNER_TEMP\quintara-bundle"
+      # install_smoke exercises the installed CLI version/doctor and the GUI
+      # process boundary in one clean-user-directory flow.
       - run: .\packaging\windows\smoke.ps1
       - run: choco install innosetup --yes --no-progress
       - run: '& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" packaging\windows\Quintara.iss'
