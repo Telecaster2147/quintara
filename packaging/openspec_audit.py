@@ -63,9 +63,13 @@ def _strict_validation() -> dict[str, object]:
         # ``uv run`` on Windows.  npx is present on the hosted runner and can
         # invoke the pinned validator without relying on PATHEXT resolution.
         npx = shutil.which("npx.cmd") or shutil.which("npx")
-        if not npx:
-            return {"status": "unavailable", "error": "openspec and npx were not found on PATH"}
-        command = [npx, "--yes", "@fission-ai/openspec@1.9.0", "validate", "quintara-product-experience-v2", "--strict", "--json"]
+        if npx:
+            command = [npx, "--yes", "@fission-ai/openspec@1.9.0", "validate", "quintara-product-experience-v2", "--strict", "--json"]
+        else:
+            npm = shutil.which("npm.cmd") or shutil.which("npm")
+            if not npm:
+                return {"status": "unavailable", "error": "openspec, npx and npm were not found on PATH"}
+            command = [npm, "exec", "--yes", "--package=@fission-ai/openspec@1.9.0", "--", "openspec", "validate", "quintara-product-experience-v2", "--strict", "--json"]
     try:
         result = subprocess.run(
             command,
