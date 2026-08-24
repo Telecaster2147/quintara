@@ -158,6 +158,7 @@ jobs:
         run: |
           uv run python packaging/openspec_audit.py
           uv run python packaging/icon_release_audit.py
+          uv run python packaging/sbom.py
           uv run python packaging/legal_review.py
           uv run python packaging/rollback_drill.py
           uv run python packaging/test_matrix.py --skip-visual --skip-benchmark
