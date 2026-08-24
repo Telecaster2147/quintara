@@ -76,9 +76,11 @@ jobs:
           path: dist/
 
   wslg-real-window:
+    # A repository variable enables the optional private WSLg runner.  When it
+    # is absent, the local WSLg evidence record is merged by aggregate-evidence
+    # instead of leaving the hosted run queued forever for an unavailable label.
+    if: ${{ vars.QUINTARA_WSLG_RUNNER == 'true' }}
     runs-on: [self-hosted, Windows, X64, WSLg, quintara-release]
-    # Keep the aggregate evidence job live even when this optional private
-    # runner is not registered for the repository.
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
