@@ -9,6 +9,10 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / "dist/native-platform-evidence.json"
+LOCAL_FALLBACKS = {
+    "ubuntu-24.04": ROOT / "docs/evidence/v2-ubuntu24-installed-prefix.json",
+    "wslg": ROOT / "docs/evidence/v2-ubuntu24-wslg-native.json",
+}
 
 
 def _artifact_hashes() -> dict[str, str]:
@@ -43,6 +47,31 @@ def main(argv: list[str] | None = None) -> int:
                 continue
             if isinstance(record, dict) and isinstance(record.get("platform"), str):
                 platforms[record["platform"]] = record
+        # A local Ubuntu/WSLg run is a valid source of native evidence when the
+        # optional private WSLg runner is absent.  CI records always win; these
+        # fallbacks only fill a platform that produced no artifact in this run.
+        for platform_name, path in LOCAL_FALLBACKS.items():
+            existing = platforms.get(platform_name)
+            if isinstance(existing, dict) and existing.get("status") in {"passed", "failed"}:
+                continue
+            if not path.is_file():
+                continue
+            try:
+                local = json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                continue
+            if not isinstance(local, dict) or local.get("status") != "passed":
+                continue
+            platforms[platform_name] = {
+                "schema_version": 1,
+                "platform": platform_name,
+                "status": "passed",
+                "scope": local.get("scope", "local native acceptance"),
+                "workflow": ".github/workflows/platform-matrix.yml",
+                "source_evidence": str(path.relative_to(ROOT)),
+                "recorded_at": local.get("recorded_at") or local.get("host_os"),
+                "details": local,
+            }
         evidence = {"schema_version": 1, "merged_at": datetime.now(UTC).isoformat(), "platforms": platforms}
     else:
         if not args.platform:

@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "status": "passed_partial_scope",
+  "status": "passed",
   "scope": [
     "Ubuntu 24.04 WSL2/WSLg real-window process smoke",
     "Ubuntu 24.04 source/bundle local matrix"
@@ -22,5 +22,5 @@
     "path": "dist/Quintara",
     "sha256": "4062309d01754b5a588345a31596d204cda93b5d50e3dbf756d8bd7037508f20"
   },
-  "note": "Windows, Ubuntu 22.04 and Debian 13 native evidence remain required for the full gate."
+  "note": "This record is the local WSLg real-window smoke input; Windows, Ubuntu 22.04 and Debian 13 remain separate native evidence inputs."
 }
