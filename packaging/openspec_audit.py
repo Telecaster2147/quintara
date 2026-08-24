@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -51,9 +52,23 @@ def _task_status() -> dict[str, object]:
 
 
 def _strict_validation() -> dict[str, object]:
+    validator = next(
+        (shutil.which(name) for name in ("openspec", "openspec.cmd", "openspec.exe") if shutil.which(name)),
+        None,
+    )
+    if validator:
+        command = [validator, "validate", "quintara-product-experience-v2", "--strict", "--json"]
+    else:
+        # npm's global bin directory is not consistently added to PATH by
+        # ``uv run`` on Windows.  npx is present on the hosted runner and can
+        # invoke the pinned validator without relying on PATHEXT resolution.
+        npx = shutil.which("npx.cmd") or shutil.which("npx")
+        if not npx:
+            return {"status": "unavailable", "error": "openspec and npx were not found on PATH"}
+        command = [npx, "--yes", "@fission-ai/openspec@1.9.0", "validate", "quintara-product-experience-v2", "--strict", "--json"]
     try:
         result = subprocess.run(
-            ["openspec", "validate", "quintara-product-experience-v2", "--strict", "--json"],
+            command,
             cwd=ROOT / "docs/openspec",
             capture_output=True,
             text=True,
