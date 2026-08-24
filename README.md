@@ -115,8 +115,8 @@ Quintara 保留源文件，不替用户修改或填补原始数据；检查结�
 | `NON_PIT_FALLBACK` | 使用当前成分回看历史 | 仅在用户显式确认后建立，并永久显示提示 |
 
 BaoStock 的单次成分查询是指定日期的快照。进入 `PIT_BASELINE` 时，成员数据需要包含
-`stock_id,index_code,start_date,end_date` 有效区间。完整决策见
-[`docs/ADR-001-PIT-AND-BAOSTOCK.md`](docs/ADR-001-PIT-AND-BAOSTOCK.md)。
+`stock_id,index_code,start_date,end_date` 有效区间；当前静态成分快照始终作为
+`NON_PIT_FALLBACK` 单独标记和存储。
 
 ## 策略与计算口径
 
@@ -225,7 +225,7 @@ uv run quintara gui
 uv run ruff check src tests packaging
 uv run python packaging/typecheck.py
 uv run pytest
-cd docs/openspec/openspec && openspec validate --strict --all
+uv build
 ```
 
 ## 文档导航
@@ -236,9 +236,9 @@ cd docs/openspec/openspec && openspec validate --strict --all
 | [`docs/CSV_FIELD_DICTIONARY.md`](docs/CSV_FIELD_DICTIONARY.md) | CSV 字段、单位和验证规则 |
 | [`docs/OPERATIONS.md`](docs/OPERATIONS.md) | 数据恢复、运行维护和排错 |
 | [`docs/ERROR_CATALOG.md`](docs/ERROR_CATALOG.md) | 中文错误索引与处理建议 |
-| [`docs/PRODUCT_DESIGN.md`](docs/PRODUCT_DESIGN.md) | 产品架构和设计决策 |
-| [`docs/openspec/README.md`](docs/openspec/README.md) | OpenSpec 需求、设计、任务与追溯 |
-| [`docs/RELEASE.md`](docs/RELEASE.md) | 发布门禁与验证证据 |
+| [`docs/PRIVACY.md`](docs/PRIVACY.md) | 本地数据、联网和隐私原则 |
+| [`docs/LEGAL_NOTICE.md`](docs/LEGAL_NOTICE.md) | 数据与研究边界声明 |
+| [`docs/THIRD_PARTY_NOTICES.md`](docs/THIRD_PARTY_NOTICES.md) | 第三方组件、许可证与数据来源 |
 
 ## 贡献
 

@@ -99,7 +99,7 @@ Quintara 0.1.0 将三种研究路线显式分离：
 - 自定义静态股票池的结果会标记幸存者偏差。
 - 不同路线的模型与结果相互隔离，避免研究口径混用。
 
-设计决策详见 `docs/ADR-001-PIT-AND-BAOSTOCK.md`。
+PIT 与静态成分路线始终使用独立数据、模型和结果身份。
 
 ### 训练、预测与 Top-5 组合
 
@@ -287,7 +287,6 @@ Quintara 0.1.0 的发布源提交为：
 | [`README.md`](https://github.com/Telecaster2147/quintara/blob/v0.1.0/README.md) | 安装、使用与项目入口 |
 | [`docs/FIRST_USE.md`](https://github.com/Telecaster2147/quintara/blob/v0.1.0/docs/FIRST_USE.md) | 首次启动和完整操作流程 |
 | [`docs/CSV_FIELD_DICTIONARY.md`](https://github.com/Telecaster2147/quintara/blob/v0.1.0/docs/CSV_FIELD_DICTIONARY.md) | CSV 字段、单位和验证规则 |
-| [`docs/ADR-001-PIT-AND-BAOSTOCK.md`](https://github.com/Telecaster2147/quintara/blob/v0.1.0/docs/ADR-001-PIT-AND-BAOSTOCK.md) | PIT 与 BaoStock 设计决策 |
 | [`docs/OPERATIONS.md`](https://github.com/Telecaster2147/quintara/blob/v0.1.0/docs/OPERATIONS.md) | 数据恢复、运行维护和排错 |
 | [`docs/ERROR_CATALOG.md`](https://github.com/Telecaster2147/quintara/blob/v0.1.0/docs/ERROR_CATALOG.md) | 中文错误索引和处理建议 |
 | [`docs/PRIVACY.md`](https://github.com/Telecaster2147/quintara/blob/v0.1.0/docs/PRIVACY.md) | 本地数据与隐私原则 |
