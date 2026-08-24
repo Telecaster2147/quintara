@@ -107,6 +107,10 @@ def main(argv: list[str] | None = None) -> int:
     else:
         checks["production_scale"] = _command("production-scale", [python, "packaging/production_scale_benchmark.py"], timeout=900)
     checks["icon_release"] = _command("icon-release", [python, "packaging/icon_release_audit.py"], timeout=120)
+    # The legal wording gate validates the generated component inventory as well
+    # as the checked-in notices.  Generate it in the matrix itself so a clean
+    # native runner has the same evidence contract as the package workflow.
+    checks["sbom"] = _command("sbom", [python, "packaging/sbom.py"], timeout=120)
     checks["legal_wording"] = _command("legal-wording", [python, "packaging/legal_review.py"], timeout=120)
     checks["rollback_drill"] = _command("catalog-rollback-drill", [python, "packaging/rollback_drill.py"], timeout=120)
     checks["cli_regression"] = _command("cli-version", [python, "-m", "quintara", "--version"], timeout=120)
