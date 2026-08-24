@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import re
 import subprocess
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -17,6 +18,12 @@ TASKS = CHANGE / "tasks.md"
 EVIDENCE = ROOT / "docs/V2_EVIDENCE_MATRIX.md"
 OUTPUT = ROOT / "dist/openspec-audit.json"
 ID_RE = re.compile(r"\b([A-Z]{2,5})-(\d{3})(?:\s*[-–—]\s*(\d{3}))?\b")
+
+# GitHub's Windows runner defaults stdout to the active legacy code page.  The
+# audit intentionally includes Chinese task descriptions, so emit UTF-8 in both
+# interactive logs and redirected CI output.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
 
 
 def _ids(text: str) -> set[str]:
