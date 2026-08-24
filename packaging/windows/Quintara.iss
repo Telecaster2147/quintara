@@ -43,7 +43,7 @@ begin
   begin
     { Silent uninstall is the automation/default-preserve boundary.  Interactive
       uninstall keeps the explicit two-step confirmation for local data. }
-    if WizardSilent then
+    if UninstallSilent then
       Exit;
     DataDir := ExpandConstant('{localappdata}\Quintara');
     if DirExists(DataDir) and
