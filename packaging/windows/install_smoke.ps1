@@ -33,6 +33,10 @@ $doctor = & $cli doctor --root $dataDir
 $doctorText = ($doctor | Out-String)
 if ($LASTEXITCODE -ne 0 -or $doctorText -notmatch '"os"\s*:') { throw "Installed CLI doctor failed" }
 
+# The console CLI checks above can leave a short-lived conhost teardown on the
+# hosted runner.  Let that baseline settle before attributing a new process to
+# the GUI launch.
+Start-Sleep -Milliseconds 750
 # Use a clean process snapshot to prove that the GUI PE subsystem is windowed.
 $before = @(Get-Process conhost, powershell, pwsh, WindowsTerminal -ErrorAction SilentlyContinue |
     Select-Object -ExpandProperty Id)
