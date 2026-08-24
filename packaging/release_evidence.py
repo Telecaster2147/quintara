@@ -29,12 +29,12 @@ def main() -> int:
         ROOT / "uv.lock",
         ROOT / "pyproject.toml",
         ROOT / "fixtures/manifest.json",
-        ROOT / "docs/openspec/openspec/changes/quintara-stable-v1/tasks.md",
+        ROOT / "README.md",
     ]
     schema_files = [
         ROOT / "docs/CSV_FIELD_DICTIONARY.md",
-        ROOT / "docs/openspec/openspec/changes/quintara-stable-v1/.openspec.yaml",
-        ROOT / "docs/openspec/openspec/changes/quintara-stable-v1/tasks.md",
+        ROOT / "docs/LEGAL_NOTICE.md",
+        ROOT / "docs/PRIVACY.md",
     ]
     artifact_root = ROOT / "dist"
     artifacts = {}
@@ -56,7 +56,6 @@ def main() -> int:
         "gates": {
             "ci": "GitHub Actions Quintara CI matrix",
             "package": "GitHub Actions Package smoke Linux/Windows",
-            "openspec": "openspec validate --strict --all",
         },
         "artifact_policy": {
             "historical_market_data_bundled": False,
