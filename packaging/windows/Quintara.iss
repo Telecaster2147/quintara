@@ -1,5 +1,5 @@
 #define MyAppName "Quintara"
-#define MyAppVersion "0.1.0"
+#define MyAppVersion "0.2.0"
 #define MyAppPublisher "AFWEF_147"
 #define MyAppExeName "Quintara.exe"
 

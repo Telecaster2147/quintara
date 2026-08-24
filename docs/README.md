@@ -14,7 +14,7 @@
 ## 发布与兼容
 
 - [0.1.0 发布说明](RELEASE_NOTES_v0.1.0.md)
-- [0.2.0 候选发布说明](RELEASE_NOTES_v0.2.0.md)
+- [0.2.0 发布说明](RELEASE_NOTES_v0.2.0.md)
 - [v2 平台安装与发布门禁](V2_PLATFORM_RELEASE.md)
 - [供应方数据运维与许可决策](PROVIDER_OPERATIONS.md)
 

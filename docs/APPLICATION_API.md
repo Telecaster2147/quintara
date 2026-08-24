@@ -11,7 +11,7 @@ QML page → PageViewModel → ProductUseCases → QuintaraService → domain ad
 ```
 
 - QML receives `PageDTO.as_dict()` values and invokes controller slots.
-- QML does not read SQLite, manifests, files, providers, or the model kernel.
+- QML does not read SQLite, manifests, files, providers, or the training service directly.
 - `ProductUseCases` exposes environment, data, stocks, training, results, and
   history summaries using user-facing Chinese copy.
 - `TechnicalDetailsDTO` is the only presentation path for implementation

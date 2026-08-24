@@ -14,5 +14,5 @@ Quintara 运行时使用或兼容以下组件。发布候选的 `dist/sbom.json`
 | Inno Setup | Windows 安装器（发布工具） | [Inno Setup license](https://jrsoftware.org/files/is/license.txt) |
 | Hypothesis / pytest / Ruff / ty | 开发与验证依赖 | 仅开发环境使用，各自上游 notice |
 
-`src/quintara/_kernel/` 是比赛内核在产品中的可复现快照；其原始来源为同一
-工作区 `../bigdata/app/code/src`，修改时应同步记录 source hash 和变更说明。
+发布包包含项目自有的训练与排序组件。组件版本、来源摘要和修改记录随每次发布的
+SBOM 与源代码一同保存，用户可据此核对安装包内容和许可证范围。
