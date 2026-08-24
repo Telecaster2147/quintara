@@ -29,16 +29,15 @@ Python、Git 或开发工具。
 
 ### 1. 下载安装包
 
-在 [`Package smoke`](https://github.com/Telecaster2147/quintara/actions/workflows/package.yml)
-的最新成功构建中，从 **Artifacts** 下载
-`quintara-windows-<提交编号>`。解压 ZIP 后，运行 `installer` 目录中的：
+从 [Quintara Releases](https://github.com/Telecaster2147/quintara/releases/latest) 下载最新正式版。
+发布页会同时提供两种 Windows 版本：
 
-```text
-Quintara-0.1.0-windows-x64.exe
-```
+| 版本 | 适合场景 | 下载 |
+| --- | --- | --- |
+| 安装版 | 正常安装，可创建开始菜单和桌面快捷方式 | [下载 Windows 安装程序](https://github.com/Telecaster2147/quintara/releases/latest/download/Quintara-Windows-x64-Setup.exe) |
+| 便携版 | 无需安装，在下载位置直接运行 | [下载 Windows 便携版](https://github.com/Telecaster2147/quintara/releases/latest/download/Quintara-Windows-x64-Portable.exe) |
 
-同一个 Artifact 也包含免安装的 `Quintara.exe`。需要桌面和开始菜单快捷方式时，
-使用 `installer` 中的安装程序；需要便携运行时，直接使用 `Quintara.exe`。
+上述链接始终指向最新正式版，不需要查找 Actions 构建记录或解压 Artifact。
 
 ### 2. 完成安装
 
@@ -129,10 +128,12 @@ BaoStock 的单次成分查询是指定日期的快照。进入 `PIT_BASELINE` �
 
 ## Linux 安装
 
-Linux 发布包支持 Ubuntu 22.04/24.04 与 Debian 12/13 x86-64。下载最新
-`quintara-linux-<提交编号>` Artifact 并解压，然后直接运行单文件程序：
+Linux 发布包支持 Ubuntu 22.04/24.04 与 Debian 12/13 x86-64。下载
+[Linux x86-64 最新正式版](https://github.com/Telecaster2147/quintara/releases/latest/download/Quintara-Linux-x86_64.tar.gz)
+并运行：
 
 ```bash
+tar -xzf Quintara-Linux-x86_64.tar.gz
 chmod +x Quintara
 ./Quintara --version
 ./Quintara gui
