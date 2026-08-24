@@ -2,6 +2,8 @@ name: Native platform acceptance matrix
 
 on:
   workflow_dispatch:
+  pull_request:
+    branches: [main]
   schedule:
     - cron: "31 2 * * 0"
 
