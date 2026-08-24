@@ -34,4 +34,4 @@ uv run python packaging/release_evidence.py
 
 安装包不包含用户数据、账户、token 或训练结果。首次启动后数据目录由应用创建。
 
-GUI 后台进程必须使用 `quintara.platform.subprocess_policy(gui_background=True)`；CLI 子进程使用默认策略继承调用终端。Windows 干净会话验收脚本记录在 `packaging/windows/smoke.ps1`，安装/卸载/图标缓存脚本记录在 `packaging/windows/install_smoke.ps1`。`test_matrix.py` 与 `openspec_audit.py` 产生本地测试及双向追踪证据；原生平台与必需审阅未附前 release evidence 保持 `pre-release`。`candidate_gate.py --strict` 只在全部 OpenSpec 任务、原生矩阵、ABI、回滚演练和数据权益/发布审阅均存在时返回候选通过，产品所有者确认不作为独立签字字段。
+GUI 后台进程必须使用 `quintara.platform.subprocess_policy(gui_background=True)`；CLI 子进程使用默认策略继承调用终端。Windows 干净会话验收脚本记录在 `packaging/windows/smoke.ps1`，安装/卸载/图标缓存脚本记录在 `packaging/windows/install_smoke.ps1`。`test_matrix.py` 与 `openspec_audit.py` 产生本地测试及双向追踪证据；原生平台与制品证据未附前 release evidence 保持 `pre-release`。`candidate_gate.py --strict` 只在全部 OpenSpec 任务、原生矩阵、ABI、图标、法律材料和回滚演练均存在时返回候选通过，不读取独立签字字段。

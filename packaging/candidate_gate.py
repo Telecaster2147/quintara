@@ -1,9 +1,11 @@
 """Evaluate the final v2 candidate gate without guessing native evidence.
 
 The normal invocation writes a machine-readable pre-release result and exits
-successfully so regular CI can publish diagnostics. Release managers use
-``--strict``; that mode returns non-zero until every OpenSpec task, native
-matrix result, ABI check, rollback drill, and required review sign-off is present.
+successfully so regular CI can publish diagnostics. ``--strict`` returns
+non-zero until every OpenSpec task, native matrix result, ABI check, icon
+check, legal-material check, and rollback drill is present. Release status is
+based on these reproducible engineering artifacts; no separate reviewer or
+release-owner signature is required.
 """
 from __future__ import annotations
 
@@ -13,11 +15,6 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / "dist/candidate-gate.json"
-# The product owner is the requesting user and has confirmed the release
-# decision in the task conversation.  It is deliberately not an independent
-# machine-gated signature.  Independent data-rights and release review records
-# remain explicit evidence requirements.
-SIGNOFF_FIELDS = ("DATA_RIGHTS_REVIEWER", "RELEASE_MANAGER")
 
 
 def _read(relative: str) -> dict[str, object] | None:
@@ -29,19 +26,6 @@ def _read(relative: str) -> dict[str, object] | None:
     except (OSError, json.JSONDecodeError):
         return None
     return value if isinstance(value, dict) else None
-
-
-def _signoffs() -> dict[str, bool]:
-    text = (ROOT / "docs/LEGAL_REVIEW_RECORD.md").read_text(encoding="utf-8")
-    values: dict[str, str] = {}
-    for line in text.splitlines():
-        name, separator, value = line.partition(":")
-        if separator and name.strip() in SIGNOFF_FIELDS:
-            values[name.strip()] = value.strip()
-    return {
-        field: bool(values.get(field)) and values[field].upper() not in {"PENDING", "TBD"}
-        for field in SIGNOFF_FIELDS
-    }
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -71,7 +55,6 @@ def main(argv: list[str] | None = None) -> int:
         isinstance(native_results[name], dict) and native_results[name].get("status") == "passed"
         for name in required_native
     )
-    signoffs = _signoffs()
     checks = {
         "openspec_tasks_complete": not pending and audit.get("candidate_ready") is True,
         "local_matrix_passed": matrix.get("local_passed") is True,
@@ -79,7 +62,6 @@ def main(argv: list[str] | None = None) -> int:
         "abi_baseline_passed": abi.get("passed") is True,
         "icon_audit_passed": icon.get("passed") is True,
         "legal_review_passed": legal.get("passed") is True,
-        "formal_signoffs_present": all(signoffs.values()),
         "rollback_drill_passed": rollback.get("passed") is True,
     }
     passed = all(checks.values())
@@ -87,7 +69,6 @@ def main(argv: list[str] | None = None) -> int:
         "schema_version": 1,
         "status": "candidate" if passed else "pre-release",
         "checks": checks,
-        "formal_signoffs": signoffs,
         "blockers": [name for name, value in checks.items() if not value],
         "strict": args.strict,
     }

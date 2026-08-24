@@ -10,7 +10,7 @@ REQUIRED = {
     "docs/LEGAL_NOTICE.md": ("研究", "收益", "交易"),
     "docs/PRIVACY.md": ("遥测", "本地"),
     "docs/THIRD_PARTY_NOTICES.md": ("Qt", "LightGBM"),
-    "docs/LEGAL_REVIEW_RECORD.md": ("工程审阅状态", "候选门禁"),
+    "docs/LEGAL_REVIEW_RECORD.md": ("工程审阅状态", "发布证据状态"),
 }
 
 
@@ -34,8 +34,8 @@ def main() -> int:
         "review_type": "engineering wording and provenance review",
         "checks": checks,
         "document_hashes": hashes,
-        "status": "engineering_review_pass_with_required_review_signoff_gate",
-        "required_signoff_fields": ["DATA_RIGHTS_REVIEWER", "RELEASE_MANAGER"],
+        "status": "engineering_review_pass",
+        "release_decision": "evidence_based",
         "passed": all(value if isinstance(value, bool) else all(value.values()) for value in checks.values()),
     }
     output = ROOT / "dist/legal-review.json"

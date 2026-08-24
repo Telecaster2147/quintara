@@ -24,6 +24,6 @@ GUI 测试必须使用隔离内容根、`objectName`/`Accessible.name` 语义定
 3. Windows 11、Ubuntu 22.04/24.04、Debian 12/13 和 WSLg 原生窗口证据齐全；
 4. Windows 安装器/便携包、Linux 发行物、GUI/CLI、升级/卸载和无控制台 smoke 通过；Linux bundle 的 glibc 基线审计通过；
 5. `packaging/test_matrix.py` 汇总本地单元/属性/合同/GUI/CLI/恢复/视觉检查；`packaging/openspec_audit.py` 检查全部 OpenSpec 场景 ID 与证据矩阵的双向覆盖；
-6. SBOM、法律/许可审阅、发行物哈希、生产 fixture、截图与 known items 写入 release evidence；未完成的原生平台或必需审阅门禁保持 `pre-release`。产品所有者确认不作为独立签字字段。
+6. SBOM、法律/许可工程记录、发行物哈希、生产 fixture、截图与 known items 写入 release evidence；未完成的原生平台或制品证据保持 `pre-release`。
 7. 生产 channel 凭证/再分发依据齐全或明确保持空 channel；
 8. catalog 上一指针回滚演练成功后，才写候选版本标记。

@@ -18,7 +18,7 @@ Quintara 现有桌面版本已能串联部分后端能力，但首次启动、�
 - **BREAKING**：Windows 发布物拆分桌面 GUI 与控制台 CLI 启动身份；桌面快捷方式启动无控制台窗口的 GUI 子系统可执行文件，源码/wheel 通过 `quintara-gui` GUI script 进入同一 QML 入口，CLI 继续保留标准输入输出和退出码。
 - 建立 Windows、原生 Linux 与 WSLg 的真实可见窗口启动、核心 GUI 旅程、安装/卸载、长任务和截图回归门禁；进程存活式 offscreen smoke 只作为快速检查。
 - Linux 正式 one-file 发行物固定在 Ubuntu 22.04/glibc 2.35 或更旧 ABI builder 生成，并用可重复的 ABI 审计阻断把 Ubuntu 24 调试产物直接交付给 Debian 12/13。
-- 候选标记由机器可读 gate 统一判断 OpenSpec 任务、原生矩阵、ABI、图标、回滚和数据权益/发布审阅证据；产品所有者确认不再作为独立签字字段，预发布阶段保留明确 blocker。
+- 候选标记由机器可读 gate 统一判断 OpenSpec 任务、原生矩阵、ABI、图标、法律材料、回滚和制品证据；不设置独立审阅或发行负责人签字字段，预发布阶段保留明确 blocker。
 
 ### Goals
 

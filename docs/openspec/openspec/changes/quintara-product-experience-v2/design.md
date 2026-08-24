@@ -186,7 +186,7 @@ GUI 启动的 Windows 子进程统一经过平台端口，使用 `CREATE_NO_WIND
 - **[GUI/CLI 双入口增加打包体积或配置漂移]** → 两个入口共用冻结模块、应用服务和版本资源，只分离 Windows 子系统及入口路由；发行物测试比较版本、依赖和存储身份。
 - **[复杂图标在 16px 失去辨识度]** → 从同一母版维护简化小尺寸导出，使用轮廓/灰度/深浅背景矩阵人工审阅，不把 1024px 缩放结果直接视为通过。
 - **[Linux bundle 在较旧发行版启动失败]** → 正式 Linux 包只从 Ubuntu 22.04/glibc 2.35 builder 发布；`elf_compat_audit.py` 检查 Python shared library ABI，Ubuntu 24 产物只作为本地窗口调试证据。
-- **[候选状态被部分证据误标]** → `candidate_gate.py` 汇总任务、原生平台、ABI、图标、回滚和数据权益/发布审阅；产品所有者确认不再作为独立签字字段。默认只生成 `pre-release`，发行负责人显式使用 `--strict`。
+- **[候选状态被部分证据误标]** → `candidate_gate.py` 汇总任务、原生平台、ABI、图标、法律材料、回滚和制品证据。默认只生成 `pre-release`，`--strict` 用于发布流水线的完整证据检查。
 - 原生 runner 通过 `native_evidence.py` 记录自身平台和发行物哈希，收集 artifacts 后合并为 `native-platform-evidence.json`，避免用单一 offscreen 主机推断全矩阵。
 
 ## Migration Plan

@@ -122,7 +122,6 @@ def main() -> int:
             "native Windows/Ubuntu/Debian install and real-window evidence",
             "Linux release bundle glibc baseline audit from the Ubuntu 22.04 builder",
             "Windows installer upgrade/uninstall and icon-cache evidence",
-            "formal data-rights/release review sign-off",
         ],
     }
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)

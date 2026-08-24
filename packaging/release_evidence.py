@@ -100,7 +100,7 @@ def main() -> int:
             if (ROOT / "dist/candidate-gate.json").is_file()
             else {
                 "status": "pre-release",
-                "reason": "native platform, installer, icon-cache, and required review evidence are required before stable labeling",
+                "reason": "native platform, installer, icon-cache, and package evidence are required before stable labeling",
             }
         ),
         "known_items": [

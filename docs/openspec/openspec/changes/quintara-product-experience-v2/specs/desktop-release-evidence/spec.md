@@ -49,14 +49,14 @@
 - **THEN** 构建必须来自 Ubuntu 22.04/glibc 2.35 或更旧 ABI builder，并通过 `elf_compat_audit.py` 后才进入跨发行版候选目录
 
 ### Requirement: 发布结论绑定证据
-**DRE-005** 稳定发布 SHALL 汇总平台、发行物哈希、测试版本、数据 fixture 身份、旅程结果、截图审阅和已知 best-effort 项；任一核心平台安装、CPU 训练预测、恢复、GUI、CLI 或必需的数据权益/发布审阅门禁失败时，候选版本保持预发布状态。产品所有者确认不作为独立签字字段。
+**DRE-005** 稳定发布 SHALL 汇总平台、发行物哈希、测试版本、数据 fixture 身份、旅程结果、截图审阅和已知 best-effort 项；任一核心平台安装、CPU 训练预测、恢复、GUI、CLI 或制品证据门禁失败时，候选版本保持预发布状态。发布判断不依赖独立审阅或发行负责人签字字段。
 
 #### Scenario: offscreen smoke 通过但真实旅程失败
 - **WHEN** 进程存活检查通过而真实窗口或用户旅程失败
 - **THEN** 发布结论以真实旅程失败为准并关联日志、截图和复现步骤
 
 #### Scenario: 候选 gate 缺少核心证据
-- **WHEN** OpenSpec 任务、原生矩阵、ABI、回滚或必需的数据权益/发布审阅任一项缺失
+- **WHEN** OpenSpec 任务、原生矩阵、ABI、图标、法律材料、回滚或制品证据任一项缺失
 - **THEN** `candidate_gate.py --strict` 返回失败并列出 blocker，发布证据保持 `pre-release`
 
 ### Requirement: Windows GUI 与 CLI 使用独立启动身份

@@ -180,7 +180,7 @@ def main(argv: list[str] | None = None) -> int:
         "native": native,
         "local_passed": passed,
         "stable_candidate": False,
-        "candidate_reason": "native platform and required data-rights/release review sign-offs are recorded separately",
+        "candidate_reason": "native platform and release-package evidence are recorded separately",
     }
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT.write_text(json.dumps(evidence, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

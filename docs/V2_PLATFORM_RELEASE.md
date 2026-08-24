@@ -16,8 +16,8 @@ Linux 可分发 one-file bundle 固定在 Ubuntu 22.04（glibc 2.35）构建，�
 
 ## 发布证据与法律材料
 
-`packaging/sbom.py` 生成 CycloneDX 依赖与许可清单；`THIRD_PARTY_NOTICES.md` 收录 Qt/PySide6、LightGBM、安装器与数据材料。`release_evidence.py` 记录平台、发行物 SHA-256、fixture 身份、JUnit、旅程和截图。免责声明、隐私、风险与第三方法律材料由工程审阅及数据权益/发布审阅记录覆盖；产品所有者确认不设独立签字字段。应用永久关闭遥测。
+`packaging/sbom.py` 生成 CycloneDX 依赖与许可清单；`THIRD_PARTY_NOTICES.md` 收录 Qt/PySide6、LightGBM、安装器与数据材料。`release_evidence.py` 记录平台、发行物 SHA-256、fixture 身份、JUnit、旅程和截图。免责声明、隐私、风险与第三方法律材料由工程记录覆盖；发布判断使用可复现证据，不设置独立审阅或发行负责人签字字段。应用永久关闭遥测。
 
-各原生 runner 使用 `packaging/native_evidence.py` 记录平台、发行物哈希和验收范围；发布负责人在收集 CI artifacts 后执行 `python packaging/native_evidence.py --merge`，生成 `dist/native-platform-evidence.json`，再运行 `candidate_gate.py --strict`。
+各原生 runner 使用 `packaging/native_evidence.py` 记录平台、发行物哈希和验收范围；收集 CI artifacts 后执行 `python packaging/native_evidence.py --merge`，生成 `dist/native-platform-evidence.json`，再运行 `candidate_gate.py --strict`；严格模式只检查机器可读工程证据。
 
 `.github/workflows/platform-matrix.yml` 的 `aggregate-evidence` job 会自动下载各平台记录，优先采用 Ubuntu 22.04 builder 的 bundle/ABI 文件，安装固定版本 OpenSpec validator，重跑 OpenSpec、图标、法律、回滚和本地矩阵检查，并上传汇总的 `candidate-gate.json` 与 `release-evidence.json`。原生 job 尚未提供记录时，聚合 job 保留缺失项并继续输出 `pre-release` 证据。
