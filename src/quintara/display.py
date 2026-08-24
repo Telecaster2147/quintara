@@ -4,6 +4,7 @@ from __future__ import annotations
 import os
 import platform
 import stat
+import tempfile
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
@@ -46,10 +47,13 @@ def prepare_qt_environment(env: dict[str, str] | None = None) -> dict[str, Any]:
         return report | {"action": "use-cli"}
     if report["qt_platform"] == "wayland":
         wslg_runtime = Path("/mnt/wslg/runtime-dir")
+        configured_runtime = values.get("XDG_RUNTIME_DIR")
         runtime = (
             wslg_runtime
             if report.get("wslg") and (wslg_runtime / str(values.get("WAYLAND_DISPLAY", "wayland-0"))).exists()
-            else Path(values.get("XDG_RUNTIME_DIR") or f"/tmp/quintara-runtime-{os.getuid()}")
+            else Path(configured_runtime)
+            if configured_runtime
+            else Path(tempfile.gettempdir()) / f"quintara-runtime-{os.getpid()}"
         )
         try:
             if runtime != wslg_runtime:
