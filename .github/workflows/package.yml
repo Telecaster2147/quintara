@@ -63,6 +63,7 @@ jobs:
   windows:
     name: Windows installer smoke
     runs-on: windows-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
