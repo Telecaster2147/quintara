@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "platform": "windows-10-22H2",
+  "status": "best_effort_external_ci_required",
+  "scope": "Windows 10 22H2 compatibility record",
+  "workflow": ".github/workflows/platform-matrix.yml",
+  "hosted_runner": "windows-latest",
+  "result": "not_run_on_windows-10-22H2",
+  "basis": [
+    "Windows installer, upgrade, uninstall, icon-cache and no-console smoke passed on the hosted Windows runner",
+    "Inno Setup packaging and the windowed GUI/console CLI split are shared with Windows 10",
+    "Windows 10 22H2 remains a best-effort target because no dedicated runner is registered"
+  ],
+  "known_limit": "A dedicated Windows 10 22H2 runner or external test record is still required for a release-grade claim."
+}
