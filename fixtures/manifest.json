@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "kind": "synthetic-test-only",
+  "files": {
+    "synthetic_listing.csv": {
+      "sha256": "dce3350b72ca4916226cdabb29732ac6012f061b217e93ec796069146a410a23",
+      "bytes": 179
+    },
+    "synthetic_market.csv": {
+      "sha256": "c2ac166320cf0c624b74fb2346d82e010f49c7b65dc4c3f48332dcb31d8c7ddb",
+      "bytes": 107420
+    },
+    "synthetic_membership.csv": {
+      "sha256": "2c530ff2a9bb9f51db6e7fec451b4fe9d2d21dd9e099e9f6329b723530759907",
+      "bytes": 248
+    }
+  }
+}
