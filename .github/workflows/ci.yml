@@ -26,7 +26,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install --yes libegl1 libxkbcommon-x11-0
+          sudo apt-get install --yes libegl1 libxkbcommon-x11-0 libxcb-cursor0
       - run: uv python install 3.12
       - run: uv sync --locked --group dev
       - run: uv run ruff check src tests

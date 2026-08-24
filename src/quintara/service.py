@@ -11,6 +11,7 @@ from typing import Any, cast
 
 import pandas as pd
 
+from .contracts import STRATEGY_POLICIES
 from .core import (
     DEFAULT_LABEL,
     DEFAULT_WEIGHTS,
@@ -37,7 +38,9 @@ from .kernel import (
     prepare,
     train,
 )
+from .onboarding import RISK_STATEMENT_VERSION, OnboardingFlow, consent_is_current, consent_record
 from .platform import FileLock, atomic_json
+from .provider import ProviderPackageImporter
 from .registry import Registry
 from .universe import create_definition, membership_for_definition, normalize_codes
 
@@ -48,7 +51,7 @@ STRATEGIES: dict[str, dict[str, Any]] = {
     "balanced": {"lgbm_num_leaves": 15, "lgbm_min_data_in_leaf": 500, "lgbm_feature_fraction": 0.7, "lgbm_bagging_fraction": 0.7},
     "conservative": {"lgbm_num_leaves": 7, "lgbm_min_data_in_leaf": 800, "lgbm_feature_fraction": 0.6, "lgbm_bagging_fraction": 0.6, "lgbm_time_decay_half_life_days": 720},
 }
-CONSENT_VERSION = "CN-A-SHARE-RESEARCH-1"
+CONSENT_VERSION = RISK_STATEMENT_VERSION
 
 
 class ServiceError(RuntimeError):
@@ -108,12 +111,24 @@ class QuintaraService:
             value = json.loads(self.paths.consent.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
             return {"status": "REQUIRED", "version": CONSENT_VERSION}
-        return {"status": "CONFIRMED" if value.get("statement_version") == CONSENT_VERSION else "REQUIRED", **value, "required_version": CONSENT_VERSION}
+        return {"status": "CONFIRMED" if consent_is_current(value) else "REQUIRED", **value, "required_version": CONSENT_VERSION}
 
     def confirm_consent(self) -> dict[str, Any]:
-        value = {"statement_version": CONSENT_VERSION, "confirmed_at": now_utc(), "application_version": app_version()}
+        value = consent_record(app_version())
         atomic_json(self.paths.consent, value)
         return {"status": "CONFIRMED", **value}
+
+    def onboarding_status(self) -> dict[str, Any]:
+        return OnboardingFlow(self.registry).status()
+
+    def onboarding_advance(self, step: int, *, source: Any = None) -> dict[str, Any]:
+        return OnboardingFlow(self.registry).advance(step, source=source)
+
+    def onboarding_skip(self) -> dict[str, Any]:
+        return OnboardingFlow(self.registry).skip()
+
+    def onboarding_reopen(self) -> dict[str, Any]:
+        return OnboardingFlow(self.registry).reopen()
 
     def doctor(self) -> dict[str, Any]:
         report = diagnose(self.paths)
@@ -125,6 +140,14 @@ class QuintaraService:
     def import_csv(self, market_csv: str | Path, **kwargs: Any) -> dict[str, Any]:
         with FileLock(self.paths.lock):
             manifest = self.data.import_csv(market_csv, **kwargs)
+        manifest["stale_models"] = self.registry.mark_models_stale_for_data(str(manifest["generation"]))
+        self.bootstrap()
+        return manifest
+
+    def import_provider_package(self, package: str | Path, *, platform_tag: str = "any") -> dict[str, Any]:
+        with FileLock(self.paths.lock):
+            manifest = ProviderPackageImporter(self.data).import_package(Path(package), platform_tag=platform_tag)
+        manifest["stale_models"] = self.registry.mark_models_stale_for_data(str(manifest["generation"]))
         self.bootstrap()
         return manifest
 
@@ -136,7 +159,19 @@ class QuintaraService:
                 row["manifest"] = json.loads(row["manifest"])
             except (KeyError, TypeError, json.JSONDecodeError):
                 pass
-        return {"active": active, "generations": generations}
+        difference = None
+        if active and active.get("parent_generation"):
+            parent_path = self.paths.data_generations / str(active["parent_generation"]) / "manifest.json"
+            if parent_path.exists():
+                parent = json.loads(parent_path.read_text(encoding="utf-8"))
+                difference = {
+                    "from": parent.get("generation"),
+                    "to": active.get("generation"),
+                    "date_max": [parent.get("date_max"), active.get("date_max")],
+                    "market_rows_added": int(active.get("market_rows", 0)) - int(parent.get("market_rows", 0)),
+                    "stocks_changed": int(active.get("market_stocks", 0)) - int(parent.get("market_stocks", 0)),
+                }
+        return {"active": active, "generations": generations, "difference": difference, "content_root": str(self.paths.root)}
 
     def update_data(self, **kwargs: Any) -> dict[str, Any]:
         # Keep BaoStock updates connected to the currently selected custom
@@ -153,6 +188,7 @@ class QuintaraService:
                     raise ServiceError("active custom universe definition is invalid") from None
         with FileLock(self.paths.lock):
             manifest = self.data.update_baostock(**kwargs)
+        manifest["stale_models"] = self.registry.mark_models_stale_for_data(str(manifest["generation"]))
         self.bootstrap()
         return manifest
 
@@ -298,8 +334,16 @@ class QuintaraService:
                     excluded.update(listing.loc[values.str.contains("st|suspend|delist", regex=True), "stock_id"].astype(str))
             if excluded:
                 membership = membership[~membership["stock_id"].astype(str).isin(excluded)].copy()
-        if route == UniverseMode.CUSTOM_UNIVERSE and int(membership["stock_id"].nunique()) < 100:
-            raise ServiceError("自定义股票池经过状态过滤后少于100只；请补足股票或显式切换路线")
+        if int(membership["stock_id"].nunique()) < 100:
+            raise ServiceError("活动股票池清单少于100只；请补足股票或显式切换研究路线")
+        starts = pd.to_datetime(membership["start_date"], errors="coerce")
+        ends = pd.to_datetime(membership["end_date"], errors="coerce")
+        minimum_slice = min(
+            int(membership[(starts <= stamp) & (ends.isna() | (ends >= stamp))]["stock_id"].nunique())
+            for stamp in pd.to_datetime(market["日期"].unique())
+        )
+        if minimum_slice < 100:
+            raise ServiceError(f"历史截面最少仅 {minimum_slice} 只有效股票；训练要求每个截面至少100只")
         cfg = default_model_config()
         cfg.update(STRATEGIES[strategy])
         requested_config = config or {}
@@ -409,7 +453,7 @@ class QuintaraService:
         listing_view = listing.copy()
         listing_view["stock_id"] = listing_view["stock_id"].astype(str).str.extract(r"(\d{6})")[0].str.zfill(6)
         name_column = next((column for column in ("name", "stock_name", "code_name") if column in listing_view.columns), None)
-        metadata_columns = ["stock_id", "exchange"] + ([name_column] if name_column else [])
+        metadata_columns = ["stock_id", "exchange", "status", "trade_status", "is_st", "is_suspended"] + ([name_column] if name_column else [])
         metadata_view = listing_view[[column for column in metadata_columns if column in listing_view.columns]].drop_duplicates("stock_id")
         result_view = result.merge(ranking[["stock_id", "prediction", "predicted_rank"]], on="stock_id", how="left")
         result_view = result_view.merge(metadata_view, on="stock_id", how="left")
@@ -435,6 +479,7 @@ class QuintaraService:
             "route": route.value,
             "universe_id": universe_id,
             "strategy": strategy,
+            "strategy_policy": STRATEGY_POLICIES[strategy],
             "label_contract": prepared.report["label_contract"],
             "data_generation": data_manifest["generation"],
             "model_generation": model_generation,
@@ -449,6 +494,7 @@ class QuintaraService:
                 "data_created_at": data_manifest.get("created_at"),
                 "data_date_min": data_manifest.get("date_min"),
                 "data_date_max": data_manifest.get("date_max"),
+                "consent_version": CONSENT_VERSION,
             },
         }
         atomic_json(root / "manifest.json", manifest)
@@ -548,18 +594,26 @@ class QuintaraService:
             "disclaimer": "模型排名和特征影响用于研究，不是因果证明或交易指令。",
         }
 
-    def export_result(self, run_id: str, output: str | Path | None = None) -> dict[str, Any]:
-        import shutil
-
+    def export_result(self, run_id: str, output: str | Path | None = None, *, overwrite: bool = False) -> dict[str, Any]:
         run_id = self._safe_run_id(run_id)
-        self.result_manifest(run_id)
+        manifest = self.result_manifest(run_id)
         source = self.paths.results / run_id / "result.csv"
         destination = Path(output) if output else Path.cwd() / f"quintara-{run_id}.csv"
+        if destination.exists() and not overwrite:
+            raise ServiceError("export destination exists; confirm overwrite explicitly")
         destination.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(source, destination)
+        frame = pd.read_csv(source, dtype={"stock_id": str})
+        frame["stock_id"] = frame["stock_id"].astype(str).str.zfill(6)
+        frame["research_only"] = True
+        frame["risk_notice"] = "研究排序，不是收益保证或交易指令"
+        frame["mode"] = manifest.get("route")
+        from .platform import atomic_write
+
+        atomic_write(destination, frame.to_csv(index=False).encode("utf-8"))
         provenance = destination.with_suffix(destination.suffix + ".manifest.json")
-        atomic_json(provenance, self.result_manifest(run_id))
-        return {"result_csv": str(destination), "provenance_manifest": str(provenance), "columns": ["stock_id", "weight"], "uploaded": False}
+        export_manifest = manifest | {"export_sha256": content_hash(destination.read_bytes()), "exported_at": now_utc()}
+        atomic_json(provenance, export_manifest)
+        return {"result_csv": str(destination), "provenance_manifest": str(provenance), "columns": list(frame.columns), "sha256": export_manifest["export_sha256"], "uploaded": False}
 
     def export_diagnostics(self, output: str | Path | None = None) -> dict[str, Any]:
         report = {"doctor": self.doctor(), "bootstrap": self.bootstrap(), "runs": self.runs(20), "consent": self.consent_status()}

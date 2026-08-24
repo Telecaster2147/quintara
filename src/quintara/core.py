@@ -21,13 +21,18 @@ class UniverseMode(StrEnum):
 
 
 class JobState(StrEnum):
+    PLANNING = "PLANNING"
+    READY = "READY"
     QUEUED = "QUEUED"
     RUNNING = "RUNNING"
+    PAUSING = "PAUSING"
+    CANCELLING = "CANCELLING"
     SUCCEEDED = "SUCCEEDED"
     FAILED = "FAILED"
     CANCELLED = "CANCELLED"
     CACHED = "CACHED"
     RECOVERED = "RECOVERED"
+    RECOVERABLE = "RECOVERABLE"
 
 
 class Severity(StrEnum):
@@ -100,6 +105,14 @@ class AppPaths:
             root = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData/Local")) / "Quintara"
         else:
             root = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local/share")) / "quintara"
+        if override is None:
+            marker = root.expanduser() / "migration.json"
+            try:
+                selected = Path(json.loads(marker.read_text(encoding="utf-8"))["active_root"]).expanduser()
+                if selected.is_absolute() and selected.exists():
+                    root = selected
+            except (OSError, KeyError, TypeError, json.JSONDecodeError):
+                pass
         return cls(root.resolve())
 
     @property
@@ -271,5 +284,5 @@ def runtime_identity() -> RuntimeIdentity:
 DEFAULT_WEIGHTS = (0.40, 0.25, 0.15, 0.12, 0.08)
 DEFAULT_LABEL = "close_t5_over_open_t1_minus_1"
 COMPETITION_LABEL = "open_t5_over_open_t1_minus_1"
-PRODUCT_LABEL_VERSION = "quintara-weekly-open-close-v1"
+PRODUCT_LABEL_VERSION = "quintara-close5-open1-v1"
 COMPETITION_LABEL_VERSION = "competition-open-open-v1"

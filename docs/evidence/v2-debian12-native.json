@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "status": "passed_partial_scope",
+  "scope": ["Debian 12 x86-64 core contracts/lifecycle/platform/service tests", "Debian 12 CLI bundle version and doctor"],
+  "container_image": "bdc2026:latest",
+  "container_os": "Debian GNU/Linux 12 (bookworm)",
+  "python": "3.12.3",
+  "commands": [
+    "python -m pytest -q tests/test_contracts_v2.py tests/test_core.py tests/test_lifecycle_kernel.py tests/test_platform.py tests/test_service.py",
+    "./dist-debian12/quintara-cli --version",
+    "./dist-debian12/quintara-cli doctor --root /tmp/quintara-cli"
+  ],
+  "results": {
+    "core_tests": "18 passed",
+    "cli_version": "0.1.0",
+    "cli_doctor": "DOC-READY"
+  },
+  "artifact": {
+    "path": "dist/debian12/quintara-cli",
+    "sha256": "e5b93199d9ac538c09945a734f4d4cb6c26481a2a4a7dd0a030f8dc77bb60ba9",
+    "bytes": 67925184
+  },
+  "note": "GUI runtime libraries and Debian 13 remain covered by the native matrix workflow."
+}

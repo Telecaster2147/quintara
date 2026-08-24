@@ -1,18 +1,30 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "kind": "synthetic-test-only",
+  "fixture_identity": "quintara-production-contract-fixture-v2",
+  "market_stocks": 120,
+  "trading_days": 70,
+  "routes": [
+    "PIT_BASELINE",
+    "CUSTOM_UNIVERSE",
+    "NON_PIT_FALLBACK"
+  ],
   "files": {
     "synthetic_listing.csv": {
-      "sha256": "dce3350b72ca4916226cdabb29732ac6012f061b217e93ec796069146a410a23",
-      "bytes": 179
+      "sha256": "1512c688070919c1800c52e9edac97eb0c759630042ce6c26c1e429a85e6b5e8",
+      "bytes": 7728
     },
     "synthetic_market.csv": {
-      "sha256": "c2ac166320cf0c624b74fb2346d82e010f49c7b65dc4c3f48332dcb31d8c7ddb",
-      "bytes": 107420
+      "sha256": "835f7833cc3e604455dd28561d38e399e21562b2cf713a21288a41dd150f47fb",
+      "bytes": 1589694
     },
     "synthetic_membership.csv": {
-      "sha256": "2c530ff2a9bb9f51db6e7fec451b4fe9d2d21dd9e099e9f6329b723530759907",
-      "bytes": 248
+      "sha256": "2464fb87015e802b833b2e5804458b24ef684c241762d6788d9243102caedbf6",
+      "bytes": 3160
+    },
+    "synthetic_routes.json": {
+      "sha256": "994781f9c34262fa66801f53c42b99a82460ab8e638c7ab929cdb10df01f6ba4",
+      "bytes": 4062
     }
   }
 }

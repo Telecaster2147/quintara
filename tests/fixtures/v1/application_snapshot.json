@@ -1,0 +1,7 @@
+{
+  "root": "<DATA_ROOT>",
+  "active_data": "data-v1-fixture",
+  "active_universe": "pit-baseline",
+  "consent_status": "CONFIRMED",
+  "latest_run": "run-11111111111111111111111111111111"
+}

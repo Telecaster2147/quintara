@@ -21,6 +21,9 @@ dependencies = [
 [project.scripts]
 quintara = "quintara:main"
 
+[project.gui-scripts]
+quintara-gui = "quintara.qml_gui:main"
+
 [tool.ruff]
 line-length = 100
 target-version = "py312"

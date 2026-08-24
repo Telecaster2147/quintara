@@ -11,7 +11,7 @@ import pytest
 def market_fixture() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     rng = np.random.default_rng(147)
     dates = pd.bdate_range("2024-01-01", periods=70)
-    codes = [f"{600000 + index:06d}" for index in range(8)]
+    codes = [f"{600000 + index:06d}" for index in range(100)]
     rows: list[dict[str, object]] = []
     for index, code in enumerate(codes):
         close = 10.0 + index
@@ -36,7 +36,16 @@ def market_fixture() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
                 }
             )
     market = pd.DataFrame(rows)
-    listing = pd.DataFrame({"stock_id": codes, "ipo_date": dates.min(), "out_date": pd.NaT})
+    listing = pd.DataFrame(
+        {
+            "stock_id": codes,
+            "name": [f"样本股票{index + 1:03d}" for index in range(len(codes))],
+            "exchange": ["上海证券交易所" for _ in codes],
+            "status": ["正常" for _ in codes],
+            "ipo_date": dates.min(),
+            "out_date": pd.NaT,
+        }
+    )
     membership = pd.DataFrame({"stock_id": codes, "index_code": "CSI300", "start_date": dates.min(), "end_date": pd.NaT})
     return market, membership, listing
 

@@ -29,7 +29,10 @@ dist/
 
 # Maintainer-only planning, audits, and agent context
 /docs/internal/
-/docs/openspec/
+# Keep the active OpenSpec change and validator configuration versioned.  The
+# local planning/skill context remains maintainer-only and is excluded below.
+/docs/openspec/.planning/
+/docs/openspec/.agents/
 /docs/REQUIREMENTS_GRILL.md
 /docs/SKILLS.md
 /docs/PRODUCT_DESIGN.md

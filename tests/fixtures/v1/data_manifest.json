@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "generation": "data-v1-fixture",
+  "source": "pytest-v1",
+  "created_at": "2026-01-01T00:00:00+00:00",
+  "date_min": "2024-01-01",
+  "date_max": "2024-03-29",
+  "market_rows": 8400,
+  "market_stocks": 120,
+  "membership_rows": 120,
+  "files": {
+    "market.csv": {"sha256": "market-fixture-sha256", "bytes": 1234},
+    "membership.csv": {"sha256": "membership-fixture-sha256", "bytes": 234},
+    "listing.csv": {"sha256": "listing-fixture-sha256", "bytes": 345}
+  },
+  "metadata": {"membership_route": "PIT_BASELINE", "pipeline_identity": "fixture-v1"}
+}

@@ -8,6 +8,7 @@ import pandas as pd
 from quintara.core import COMPETITION_LABEL, DEFAULT_LABEL, AppPaths, UniverseMode
 from quintara.data_lifecycle import DataError, DataManager
 from quintara.kernel import prepare
+from quintara.platform import atomic_json
 from quintara.registry import Registry
 
 
@@ -55,6 +56,19 @@ def test_publication_fault_keeps_previous_active_generation(app_root, market_fix
     else:
         raise AssertionError("fault hook should interrupt publication")
     assert manager.active_manifest()["generation"] == previous["generation"]
+    registry.close()
+
+
+def test_catalog_reference_can_roll_back_to_previous_verified_generation(app_root, market_fixture):
+    market, membership, listing = market_fixture
+    registry = Registry(AppPaths.discover(app_root))
+    manager = DataManager(registry.paths, registry)
+    first = manager.publish(market, membership, listing, source="first")
+    first_pointer = json.loads(manager.paths.active_data.read_text(encoding="utf-8"))
+    second = manager.publish(market.assign(收盘=market["收盘"] * 1.001), membership, listing, source="second")
+    assert second["generation"] != first["generation"]
+    atomic_json(manager.paths.active_data, first_pointer)
+    assert manager.active_manifest()["generation"] == first["generation"]
     registry.close()
 
 

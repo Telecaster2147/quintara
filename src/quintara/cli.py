@@ -58,6 +58,9 @@ def build_parser() -> argparse.ArgumentParser:
     imp.add_argument("--units", help="JSON object declaring canonical field units")
     imp.add_argument("--merge-active", action="store_true")
     imp.add_argument("--conflict-precedence", choices=["user", "managed"])
+    package_import = data_sub.add_parser("import-package", help="verify and activate a provider ZIP or media directory")
+    package_import.add_argument("package", type=Path)
+    package_import.add_argument("--platform-tag", default="any")
     csv = sub.add_parser("csv", help="validate an input CSV")
     csv_sub = csv.add_subparsers(dest="csv_command", required=True)
     validate = csv_sub.add_parser("validate")
@@ -127,6 +130,7 @@ def build_parser() -> argparse.ArgumentParser:
     export = sub.add_parser("export", help="export exact result CSV and adjacent provenance manifest")
     export.add_argument("run_id")
     export.add_argument("--output", type=Path)
+    export.add_argument("--overwrite", action="store_true")
     sub.add_parser("gui", help="launch the standalone Qt desktop application")
 
     def add_command_root(command_parser: argparse.ArgumentParser) -> None:
@@ -197,8 +201,13 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     root = args.root or getattr(args, "command_root", None)
     if args.command == "gui":
-        from .gui import launch
-
+        try:
+            from .qml_gui import launch
+        except ModuleNotFoundError as exc:
+            if exc.name in {"PySide6", "quintara.qml_gui"}:
+                print("Quintara GUI 请使用独立的 quintara-gui 或 Quintara 图形入口。", file=sys.stderr)
+                return 2
+            raise
         return launch(root)
     service = QuintaraService(root)
     try:
@@ -222,6 +231,8 @@ def main(argv: list[str] | None = None) -> int:
                     return 3
             elif args.data_command in {"update", "initialize"}:
                 _json(service.update_data(start_date=args.start_date, end_date=args.end_date, pit_membership_csv=getattr(args, "pit_membership_csv", None), codes=_codes(args.codes) if getattr(args, "codes", None) else None, allow_non_pit=getattr(args, "allow_non_pit", False)))
+            elif args.data_command == "import-package":
+                _json(service.import_provider_package(args.package, platform_tag=args.platform_tag))
             else:
                 mapping = json.loads(args.mapping) if args.mapping else None
                 units = json.loads(args.units) if args.units else None
@@ -281,7 +292,7 @@ def main(argv: list[str] | None = None) -> int:
             else:
                 _json(service.version_info(check=args.check))
         elif args.command == "export":
-            _json(service.export_result(args.run_id, args.output))
+            _json(service.export_result(args.run_id, args.output, overwrite=args.overwrite))
         return 0
     except (ServiceError, ValueError, OSError, RuntimeError) as exc:
         print(f"quintara: {exc}", file=sys.stderr)

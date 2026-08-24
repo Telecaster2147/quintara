@@ -36,7 +36,7 @@ CSV 检查、股票池管理、训练、预测、Top-5 组合生成、结果解�
 tar -xzf Quintara-Linux-x86_64.tar.gz
 chmod +x Quintara
 ./Quintara --version
-./Quintara gui
+./Quintara
 ```
 
 ### 完整性校验

@@ -8,8 +8,30 @@ import subprocess
 import time
 from collections.abc import Iterator
 from pathlib import Path
+from typing import Any
 
 from .core import AppPaths, new_id, now_utc
+
+
+def subprocess_policy(*, gui_background: bool, platform_name: str | None = None) -> dict[str, Any]:
+    """Return one explicit child-process policy for GUI or CLI callers."""
+    target = platform_name or os.name
+    if target == "nt" and gui_background:
+        return {
+            "creationflags": int(getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)),
+            "startupinfo": _hidden_startupinfo(),
+        }
+    return {"start_new_session": target != "nt"}
+
+
+def _hidden_startupinfo() -> Any:
+    startup_class = getattr(subprocess, "STARTUPINFO", None)
+    if startup_class is None:
+        return None
+    info = startup_class()
+    info.dwFlags |= int(getattr(subprocess, "STARTF_USESHOWWINDOW", 1))
+    info.wShowWindow = 0
+    return info
 
 
 class LockBusy(RuntimeError):
@@ -109,19 +131,24 @@ def recover_staging(paths: AppPaths) -> list[str]:
 
 
 class Worker:
-    def __init__(self, command: list[str], cwd: Path | None = None) -> None:
+    def __init__(self, command: list[str], cwd: Path | None = None, *, gui_background: bool = False) -> None:
         self.command = command
         self.cwd = cwd
+        self.gui_background = gui_background
         self.process: subprocess.Popen[str] | None = None
 
     def start(self) -> None:
+        policy = subprocess_policy(gui_background=self.gui_background)
         self.process = subprocess.Popen(
             self.command,
             cwd=self.cwd,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
-            start_new_session=os.name != "nt",
+            encoding="utf-8",
+            start_new_session=bool(policy.get("start_new_session", False)),
+            creationflags=int(policy.get("creationflags", 0)),
+            startupinfo=policy.get("startupinfo"),
         )
 
     def lines(self) -> Iterator[str]:

@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "status": "passed",
+  "scope": "temporary-prefix install, CLI doctor/version, WSLg GUI startup with explicit WSLg runtime",
+  "host_os": "Ubuntu 24.04.2 LTS on WSL2/WSLg",
+  "commands": [
+    "QUINTARA_PREFIX=<temporary-prefix> ./packaging/install_linux.sh",
+    "<prefix>/bin/quintara-cli --version",
+    "<prefix>/bin/quintara-cli doctor --root <prefix>/user-data",
+    "XDG_RUNTIME_DIR=/mnt/wslg/runtime-dir QT_QPA_PLATFORM=wayland timeout 8 <prefix>/bin/quintara --root <prefix>/user-data"
+  ],
+  "results": {
+    "cli_version": "0.1.0",
+    "gui_returncode": 124,
+    "gui_interpretation": "expected timeout while installed GUI remained alive",
+    "stderr": "EGL/Mesa/Zink warnings only",
+    "gui_runtime_dir": "/mnt/wslg/runtime-dir",
+    "gui_platform": "wayland"
+  }
+}

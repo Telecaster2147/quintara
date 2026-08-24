@@ -1,0 +1,160 @@
+name: Native platform acceptance matrix
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "31 2 * * 0"
+
+permissions:
+  contents: read
+
+jobs:
+  ubuntu:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install --yes libegl1 libxkbcommon-x11-0 libxcb-cursor0
+      - uses: astral-sh/setup-uv@v6
+        with: { version: "0.11.7" }
+      - run: uv python install 3.12
+      - run: uv sync --locked --all-groups
+      - run: uv run pytest --junitxml=dist/pytest-${{ matrix.os }}.xml
+      - run: uv run python packaging/build_release.py
+      - name: Check release ABI on oldest Linux builder
+        if: matrix.os == 'ubuntu-22.04'
+        run: uv run python packaging/elf_compat_audit.py --max-glibc 2.35
+      - run: QT_QPA_PLATFORM=offscreen timeout 15 ./dist/Quintara --root "$RUNNER_TEMP/gui" || test $? -eq 124
+      - run: ./dist/quintara-cli doctor --root "$RUNNER_TEMP/cli"
+      - run: QUINTARA_PREFIX="$RUNNER_TEMP/install" ./packaging/install_linux.sh
+      - run: uv run python packaging/test_matrix.py --skip-visual --skip-benchmark
+      - run: uv run python packaging/native_evidence.py --platform "${{ matrix.os }}" --scope "native Ubuntu install, CLI, GUI and release ABI acceptance"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-${{ matrix.os }}-${{ github.sha }}
+          path: dist/
+
+  debian:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: "debian:12"
+            key: debian-12
+          - image: "debian:13"
+            key: debian-13
+    runs-on: ubuntu-24.04
+    container: ${{ matrix.image }}
+    steps:
+      - run: apt-get update && apt-get install --yes binutils build-essential ca-certificates curl git libegl1 libxkbcommon-x11-0 libxcb-cursor0
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with: { version: "0.11.7" }
+      - run: uv python install 3.12
+      - run: uv sync --locked --all-groups
+      - run: uv run pytest
+      - run: uv run python packaging/build_release.py
+      - run: QT_QPA_PLATFORM=offscreen timeout 15 ./dist/Quintara --root /tmp/quintara-gui || test $? -eq 124
+      - run: ./dist/quintara-cli doctor --root /tmp/quintara-cli
+      - run: uv run python packaging/test_matrix.py --skip-visual --skip-benchmark
+      - run: uv run python packaging/native_evidence.py --platform "${{ matrix.key }}" --scope "native Debian CLI, GUI and package acceptance"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-${{ matrix.key }}-${{ github.sha }}
+          path: dist/
+
+  wslg-real-window:
+    runs-on: [self-hosted, Windows, X64, WSLg, quintara-release]
+    steps:
+      - uses: actions/checkout@v4
+      - shell: wsl-bash {0}
+        run: |
+          uv sync --locked --all-groups
+          uv run python packaging/build_release.py
+          timeout 15 ./dist/Quintara --root /tmp/quintara-wslg || test $? -eq 124
+          uv run python packaging/native_evidence.py --platform wslg --scope "WSLg real-window startup"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-wslg-${{ github.sha }}
+          path: dist/
+
+  windows-clean-session:
+    # The hosted Windows image is intentionally used here: the smoke script
+    # snapshots the existing console hosts and compares only newly created
+    # processes, so it still exercises a clean GUI launch without requiring a
+    # private runner label.
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with: { version: "0.11.7" }
+      - run: uv sync --locked --all-groups
+      - run: uv run python packaging/build_release.py
+      - run: uv run python -c "import json; a=json.load(open('dist/build-metadata.json'))['artifacts']; assert {'Quintara.exe','quintara-cli.exe'} <= set(a)"
+      - run: choco install innosetup --yes --no-progress
+      - run: '& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" packaging\windows\Quintara.iss'
+      - run: .\packaging\windows\smoke.ps1
+      - run: .\packaging\windows\install_smoke.ps1
+      - run: uv run python packaging/native_evidence.py --platform windows-11-x64 --scope "Windows installer, upgrade, uninstall, icon-cache and no-console acceptance"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-windows-clean-${{ github.sha }}
+          path: dist/
+
+  aggregate-evidence:
+    name: Aggregate native evidence
+    if: always()
+    needs: [ubuntu, debian, wslg-real-window, windows-clean-session]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install --yes libegl1 libxkbcommon-x11-0 libxcb-cursor0
+      - name: Download completed platform records
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: native-*-${{ github.sha }}
+          path: native-artifacts
+          merge-multiple: false
+      - uses: astral-sh/setup-uv@v6
+        with: { version: "0.11.7" }
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      - name: Install release verification tools
+        run: |
+          npm install --global @fission-ai/openspec@1.9.0
+          uv sync --locked --all-groups
+      - name: Collect native evidence records
+        run: |
+          mkdir -p dist
+          if [ -d native-artifacts ]; then
+            find native-artifacts -name 'native-*.json' -not -name 'native-platform-evidence.json' -exec cp {} dist/ \;
+            ubuntu22=$(find native-artifacts -type d -path '*native-ubuntu-22.04-*' | head -1)
+            ubuntu22_dist="$ubuntu22"
+            if [ -d "$ubuntu22/dist" ]; then ubuntu22_dist="$ubuntu22/dist"; fi
+            if [ -n "$ubuntu22" ] && [ -f "$ubuntu22_dist/Quintara" ]; then
+              # Use the oldest-builder artifacts for the ABI and bundle checks;
+              # other platform records remain separate evidence inputs.
+              cp "$ubuntu22_dist/Quintara" "$ubuntu22_dist/quintara-cli" dist/ 2>/dev/null || true
+              cp "$ubuntu22_dist/elf-compatibility.json" dist/ 2>/dev/null || true
+              cp "$ubuntu22_dist/build-metadata.json" dist/ 2>/dev/null || true
+              chmod +x dist/Quintara dist/quintara-cli
+            fi
+          fi
+          python packaging/native_evidence.py --merge
+      - name: Evaluate candidate gate
+        run: |
+          uv run python packaging/openspec_audit.py
+          uv run python packaging/icon_release_audit.py
+          uv run python packaging/legal_review.py
+          uv run python packaging/rollback_drill.py
+          uv run python packaging/test_matrix.py --skip-visual --skip-benchmark
+          uv run python packaging/candidate_gate.py --strict || test $? -eq 2
+          uv run python packaging/release_evidence.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-evidence-${{ github.sha }}
+          path: dist/

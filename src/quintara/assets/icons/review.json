@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "semantic": "研究罗盘环绕按权重递增的五档本地研究组合",
+  "sizes": [
+    16,
+    20,
+    24,
+    32,
+    48,
+    64,
+    128,
+    256
+  ],
+  "small_variant_max_px": 24,
+  "checks": {
+    "recognisable_silhouette": true,
+    "grayscale_separation": true,
+    "light_background_outline": true,
+    "dark_background_outline": true,
+    "high_dpi_assets": true
+  }
+}

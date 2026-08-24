@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "run_id": "run-11111111111111111111111111111111",
+  "status": "SUCCEEDED",
+  "created_at": "2026-01-01T00:00:00+00:00",
+  "route": "PIT_BASELINE",
+  "universe_id": "pit-baseline",
+  "strategy": "balanced",
+  "label_contract": "close_t5_over_open_t1_minus_1",
+  "data_generation": "data-v1-fixture",
+  "model_generation": "model-v1-fixture",
+  "result_generation": "result-v1-fixture",
+  "model_identity": {
+    "schema_version": 1,
+    "mode": "PIT_BASELINE",
+    "universe_id": "pit-baseline",
+    "universe_generation": "universe-v1-fixture",
+    "market_data_generation": "data-v1-fixture",
+    "membership_generation": "membership-v1-fixture",
+    "listing_generation": "listing-v1-fixture",
+    "calendar_generation": "calendar-v1-fixture",
+    "label_contract": "close_t5_over_open_t1_minus_1",
+    "feature_contract": "feature-v1-fixture",
+    "kernel_version": "quintara-close5-open1-v1",
+    "source_hash": "source-v1-fixture",
+    "config_hash": "config-v1-fixture",
+    "training_start": "2024-01-01",
+    "training_cutoff": "2024-03-29",
+    "runtime_lock_hash": "runtime-v1-fixture",
+    "device_profile": "cpu"
+  },
+  "files": {"result": "result.csv", "manifest": "manifest.json"}
+}

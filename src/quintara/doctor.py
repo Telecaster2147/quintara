@@ -11,6 +11,8 @@ import sys
 from typing import Any
 
 from .core import AppPaths, Finding, RuntimeIdentity, Severity, runtime_identity
+from .display import detect_display_environment
+from .platform import subprocess_policy
 
 _PACKAGE_IMPORTS = {
     "numpy": "numpy",
@@ -54,7 +56,17 @@ def _package_versions() -> dict[str, str]:
 
 def _probe_gpu() -> tuple[str | None, str | None]:
     try:
-        result = subprocess.run(["nvidia-smi", "--query-gpu=name,driver_version", "--format=csv,noheader"], capture_output=True, text=True, timeout=3, check=False)
+        policy = subprocess_policy(gui_background=True)
+        result = subprocess.run(
+            ["nvidia-smi", "--query-gpu=name,driver_version", "--format=csv,noheader"],
+            capture_output=True,
+            text=True,
+            timeout=3,
+            check=False,
+            creationflags=int(policy.get("creationflags", 0)),
+            startupinfo=policy.get("startupinfo"),
+            start_new_session=bool(policy.get("start_new_session", False)),
+        )
         if result.returncode == 0 and result.stdout.strip():
             name, _, driver = result.stdout.strip().splitlines()[0].partition(",")
             return name.strip(), driver.strip() or None
@@ -108,5 +120,6 @@ def diagnose(paths: AppPaths | None = None, *, training_years: int = 5, universe
             "cpu_duration_warning": bool(training_years * universe_size >= 1500),
         },
         "network": {"baostock": "explicit update required", "pit": "local/provider check required", "github": "version check disabled by default"},
+        "gui_platform": detect_display_environment(),
         "findings": [finding.as_dict() for finding in findings],
     }

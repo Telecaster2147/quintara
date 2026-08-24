@@ -108,6 +108,22 @@ class Registry:
         return list(self.connection.execute("SELECT * FROM generations ORDER BY created_at DESC"))
 
     @_synchronized
+    def mark_models_stale_for_data(self, active_generation: str) -> int:
+        """Mark models whose bound data generation differs from the new active one."""
+        rows = list(self.connection.execute("SELECT id, identity FROM models WHERE status='active'"))
+        stale = []
+        for row in rows:
+            try:
+                identity = json.loads(row["identity"])
+            except (TypeError, json.JSONDecodeError):
+                identity = {}
+            if identity.get("market_data_generation") != active_generation:
+                stale.append(str(row["id"]))
+        self.connection.executemany("UPDATE models SET status='stale' WHERE id=?", ((item,) for item in stale))
+        self.connection.commit()
+        return len(stale)
+
+    @_synchronized
     def put_universe(self, universe_id: str, name: str, mode: str, definition: dict[str, Any], active: bool = False) -> None:
         if active:
             self.connection.execute("UPDATE universes SET active=0")

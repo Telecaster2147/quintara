@@ -1,0 +1,5 @@
+{
+  "command": ["quintara", "bootstrap", "--root", "<DATA_ROOT>"],
+  "exit_code": 0,
+  "required_keys": ["root", "recovered_staging", "active_data", "active_universe", "consent"]
+}

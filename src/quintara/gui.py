@@ -555,6 +555,14 @@ class MainWindow(QMainWindow):
 
 
 def launch(root: str | Path | None = None) -> int:
+    """Launch the Qt Quick release GUI; MainWindow remains a v1 test fixture."""
+    from .qml_gui import launch as launch_qml
+
+    return launch_qml(root)
+
+
+def launch_widgets_fixture(root: str | Path | None = None) -> int:
+    """Launch the historical Widgets shell for migration comparison tests."""
     app = QApplication.instance() or QApplication([])
     paths = AppPaths.discover(root)
     paths.ensure()

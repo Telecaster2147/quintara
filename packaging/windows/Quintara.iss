@@ -17,13 +17,36 @@ ArchitecturesInstallIn64BitMode=x64compatible
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
+ChangesAssociations=yes
+CloseApplications=yes
+RestartApplications=yes
+SetupIconFile=..\..\src\quintara\assets\icons\quintara.ico
+UninstallDisplayIcon={app}\Quintara.exe
 
 [Files]
 Source: "..\..\dist\Quintara.exe"; DestDir: "{app}"; DestName: "Quintara.exe"; Flags: ignoreversion
+Source: "..\..\dist\quintara-cli.exe"; DestDir: "{app}"; DestName: "quintara-cli.exe"; Flags: ignoreversion
 
 [Icons]
-Name: "{group}\Quintara"; Filename: "{app}\{#MyAppExeName}"; Parameters: "gui"
-Name: "{commondesktop}\Quintara"; Filename: "{app}\{#MyAppExeName}"; Parameters: "gui"; Tasks: desktopicon
+Name: "{group}\Quintara"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\{#MyAppExeName}"
+Name: "{commondesktop}\Quintara"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Tasks]
 Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Additional icons:"
+
+[Code]
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+var
+  DataDir: String;
+begin
+  if CurUninstallStep = usUninstall then
+  begin
+    DataDir := ExpandConstant('{localappdata}\Quintara');
+    if DirExists(DataDir) and
+       (MsgBox('是否同时删除 Quintara 的本地数据、模型和结果？默认选择“否”以便重新安装后继续使用。',
+               mbConfirmation, MB_YESNO or MB_DEFBUTTON2) = IDYES) then
+      if MsgBox('此操作会永久删除本机 Quintara 研究数据。确认继续？',
+                mbConfirmation, MB_YESNO or MB_DEFBUTTON2) = IDYES then
+        DelTree(DataDir, True, True, True);
+  end;
+end;

@@ -1,0 +1,7 @@
+module Quintara
+singleton Theme 1.0 Theme.qml
+
+AppShell 1.0 AppShell.qml
+OnboardingDialog 1.0 components/OnboardingDialog.qml
+DataTable 1.0 components/DataTable.qml
+ConfirmDialog 1.0 components/ConfirmDialog.qml

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import platform
 import subprocess
 from pathlib import Path
 
@@ -22,6 +23,13 @@ def git_revision() -> str:
         return subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
     except (OSError, subprocess.CalledProcessError):
         return "unavailable"
+
+
+def evidence_file(relative: str) -> dict[str, object]:
+    path = ROOT / relative
+    if not path.exists():
+        return {"status": "not-generated", "path": relative}
+    return {"status": "present", "path": relative, "sha256": sha256(path), "bytes": path.stat().st_size}
 
 
 def main() -> int:
@@ -62,6 +70,43 @@ def main() -> int:
             "telemetry": False,
             "result_export": "CSV plus adjacent provenance manifest",
         },
+        "platform": {"system": platform.system(), "release": platform.release(), "machine": platform.machine()},
+        "visual_evidence": {
+            str(path.relative_to(ROOT)): {"sha256": sha256(path), "bytes": path.stat().st_size}
+            for path in sorted((ROOT / "docs/evidence").glob("*.png"))
+        },
+        "native_evidence": {
+            str(path.relative_to(ROOT)): {"sha256": sha256(path), "bytes": path.stat().st_size}
+            for path in sorted((ROOT / "docs/evidence").glob("v2-*-native.json"))
+        },
+        "journeys": {
+            "pytest_junit": "dist/pytest.xml",
+            "linux_ordinary_user": "dist/linux-user-journey.json",
+            "windows_no_console": "packaging/windows/smoke.ps1",
+        },
+        "verification": {
+            "test_matrix": evidence_file("dist/test-matrix.json"),
+            "openspec_audit": evidence_file("dist/openspec-audit.json"),
+            "icon_release_audit": evidence_file("dist/icon-release-audit.json"),
+            "legal_review": evidence_file("dist/legal-review.json"),
+            "visual_matrix": evidence_file("dist/visual-matrix/manifest.json"),
+            "build_metadata": evidence_file("dist/build-metadata.json"),
+            "elf_compatibility": evidence_file("dist/elf-compatibility.json"),
+            "candidate_gate": evidence_file("dist/candidate-gate.json"),
+            "native_platform_evidence": evidence_file("dist/native-platform-evidence.json"),
+        },
+        "candidate": (
+            json.loads((ROOT / "dist/candidate-gate.json").read_text(encoding="utf-8"))
+            if (ROOT / "dist/candidate-gate.json").is_file()
+            else {
+                "status": "pre-release",
+                "reason": "native platform, installer, icon-cache, and required review evidence are required before stable labeling",
+            }
+        ),
+        "known_items": [
+            "Windows 10 22H2, WSLg and NVIDIA GPU are best-effort",
+            "production data channel requires recorded redistribution approval and release credentials",
+        ],
     }
     output = ROOT / "dist/release-evidence.json"
     output.parent.mkdir(parents=True, exist_ok=True)

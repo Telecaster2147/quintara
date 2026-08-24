@@ -54,7 +54,10 @@ Windows SmartScreen 可能显示发布者提示。请核对下载地址与构建
 4. 选择 PIT 基准股票池或自定义股票池；
 5. 选择训练年限与策略，开始训练并查看 Top-5 结果。
 
-安装器本身不携带历史行情。行情由用户首次启动时直接从 BaoStock 下载到自己的电脑。
+桌面或开始菜单快捷方式直接启动无控制台 GUI 入口；GUI 的下载和训练后台任务使用隐藏控制台策略。
+从已经打开的 PowerShell/命令提示符手工启动时，那个父终端会按调用方式继续保持开启；需要终端输出、退出码或管道时，请使用安装目录中的 `quintara-cli.exe`。
+
+发行方许可允许时，离线介质可携带同合同标准数据包；精简安装器在用户确认来源、许可、大小和传输后下载。用户也可以导入自己的 CSV，或通过受控 BaoStock 路径更新。
 
 ## 使用流程
 
@@ -135,8 +138,9 @@ Linux 发布包支持 Ubuntu 22.04/24.04 与 Debian 12/13 x86-64。下载
 ```bash
 tar -xzf Quintara-Linux-x86_64.tar.gz
 chmod +x Quintara
-./Quintara --version
-./Quintara gui
+chmod +x quintara-cli
+./Quintara
+./quintara-cli --version
 ```
 
 如果希望安装到当前用户的 `$HOME/.local`，在源码目录构建 bundle 后运行：
@@ -153,28 +157,28 @@ uv run python packaging/build_release.py
 
 ```bash
 # 环境诊断
-quintara doctor
+quintara-cli doctor
 
 # 更新数据
-quintara data update --start-date 2015-01-01 --pit-membership-csv ./pit_membership.csv
+quintara-cli data update --start-date 2015-01-01 --pit-membership-csv ./pit_membership.csv
 
 # 显式建立当前快照研究路线
-quintara data update --allow-non-pit
+quintara-cli data update --allow-non-pit
 
 # 训练并输出结果
-quintara run --strategy balanced --years 5
+quintara-cli run --strategy balanced --years 5
 
 # 查看运行历史和结果
-quintara runs
-quintara results RUN_ID --details
+quintara-cli runs
+quintara-cli results RUN_ID --details
 ```
 
 自定义股票池也可以通过 CLI 编辑：
 
 ```bash
-quintara universe list
-quintara universe add CUSTOM_UNIVERSE_ID 600000,000001
-quintara universe remove CUSTOM_UNIVERSE_ID codes.csv
+quintara-cli universe list
+quintara-cli universe add CUSTOM_UNIVERSE_ID 600000,000001
+quintara-cli universe remove CUSTOM_UNIVERSE_ID codes.csv
 ```
 
 ## 数据保存在哪里
@@ -216,7 +220,7 @@ git clone git@github.com:Telecaster2147/quintara.git
 cd quintara
 uv sync --locked --all-groups
 uv run quintara doctor
-uv run quintara gui
+uv run quintara-gui
 ```
 
 运行质量门：

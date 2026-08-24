@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "status": "passed_partial_scope",
+  "scope": [
+    "Ubuntu 24.04 WSL2/WSLg real-window process smoke",
+    "Ubuntu 24.04 source/bundle local matrix"
+  ],
+  "host_os": "Ubuntu 24.04.2 LTS",
+  "kernel": "6.18.33.2-microsoft-standard-WSL2",
+  "display": {
+    "wayland_display": "wayland-0",
+    "display": ":0",
+    "runtime_dir": "/mnt/wslg/runtime-dir"
+  },
+  "command": "XDG_RUNTIME_DIR=/mnt/wslg/runtime-dir QT_QPA_PLATFORM=wayland timeout 8 ./dist/Quintara --root <temporary-root>",
+  "result": {
+    "returncode": 124,
+    "interpretation": "expected timeout while GUI remained alive",
+    "stderr": "EGL/Mesa/Zink driver warnings only; no startup crash observed"
+  },
+  "bundle": {
+    "path": "dist/Quintara",
+    "sha256": "4062309d01754b5a588345a31596d204cda93b5d50e3dbf756d8bd7037508f20"
+  },
+  "note": "Windows, Ubuntu 22.04 and Debian 13 native evidence remain required for the full gate."
+}
