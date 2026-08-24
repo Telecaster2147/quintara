@@ -4,8 +4,37 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 .ty_cache/
+.mypy_cache/
+.hypothesis/
+.coverage
+coverage.xml
+htmlcov/
 build/
 dist/
 *.egg-info/
 .planning/
 .env
+
+# Local runtime data and generated artifacts
+/data/
+/downloads/
+/models/
+/results/
+/artifacts/
+/logs/
+/diagnostics/
+*.log
+*.sqlite
+*.sqlite3
+
+# Maintainer-only planning, audits, and agent context
+/docs/internal/
+/docs/openspec/
+/docs/REQUIREMENTS_GRILL.md
+/docs/SKILLS.md
+/docs/PRODUCT_DESIGN.md
+/docs/KERNEL_ALIGNMENT.md
+/docs/KERNEL_LINEAGE.md
+/docs/ADR-*.md
+/docs/WINDOWS_WSL_COMPATIBILITY.md
+/docs/RELEASE.md
