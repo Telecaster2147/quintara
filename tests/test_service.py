@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from quintara.core import UniverseMode
@@ -12,7 +14,14 @@ def test_service_run_writes_five_stock_artifacts(app_root, market_fixture, tmp_p
     try:
         service.data.publish(market, membership, listing, source="pytest")
         service.confirm_consent()
-        result = service.run(config={"lgbm_fixed_rounds": 64, "lgbm_min_data_in_leaf": 5, "lgbm_num_threads": 1})
+        progress: list[dict] = []
+        result = service.run(
+            config={"lgbm_fixed_rounds": 64, "lgbm_min_data_in_leaf": 5, "lgbm_num_threads": 1},
+            progress=progress.append,
+        )
+        stages = [item["stage"] for item in progress]
+        assert stages == ["checking", "preparing", "training", "predicting", "analysing", "publishing", "succeeded"]
+        assert all(0.0 <= float(item["progress"]) <= 1.0 for item in progress)
         assert len(result["result"]) == 5
         assert sum(row["weight"] for row in result["result"]) == 1.0
         manifest = service.result_manifest(result["run_id"])
@@ -21,10 +30,25 @@ def test_service_run_writes_five_stock_artifacts(app_root, market_fixture, tmp_p
         assert service.runs(1)[0]["state"] == "SUCCEEDED"
         assert (service.paths.results / result["run_id"] / "result_view.json").exists()
         assert (service.paths.results / result["run_id"] / "explanations.json").exists()
+        assert (service.paths.results / result["run_id"] / "analytics.json").exists()
         cached = service.run(config={"lgbm_fixed_rounds": 64, "lgbm_min_data_in_leaf": 5, "lgbm_num_threads": 1})
         assert cached["cached"] is True
         assert service.runs(1)[0]["state"] == "CACHED"
         assert service.result_details(result["run_id"])["identity_badge"] == "PIT_BASELINE"
+        original_read_csv = __import__("quintara.service", fromlist=["pd"]).pd.read_csv
+
+        def guarded_read_csv(path, *args, **kwargs):
+            if Path(path).name == "market.csv":
+                raise AssertionError("cached result details must not reload the full market CSV")
+            return original_read_csv(path, *args, **kwargs)
+
+        import quintara.service as service_module
+
+        service_module.pd.read_csv = guarded_read_csv
+        try:
+            assert service.result_details(result["run_id"])["risk"]
+        finally:
+            service_module.pd.read_csv = original_read_csv
         exported = tmp_path / "top5.csv"
         report = service.export_result(result["run_id"], exported)
         assert report["sha256"]

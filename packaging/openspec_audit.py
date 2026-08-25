@@ -98,7 +98,7 @@ def main() -> int:
         "evidence_matrix_present": EVIDENCE.is_file(),
         "all_spec_requirements_mapped": not missing,
         "strict_validation": validation.get("status") == "passed",
-        "expected_task_count": tasks["total"] == 126,
+        "expected_task_count": tasks["total"] == 134,
     }
     evidence = {
         "schema_version": 1,

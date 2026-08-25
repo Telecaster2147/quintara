@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import os
 import tempfile
+import time
 from pathlib import Path
 
 from PySide6.QtCore import QUrl
@@ -18,6 +19,16 @@ from quintara.service import QuintaraService
 
 ROOT = Path(__file__).resolve().parents[1]
 PAGES = ("home", "data", "universe", "train", "results", "history", "diagnostics")
+
+
+def _wait_for_job(app: QGuiApplication, backend: QmlBackend, timeout: float = 10.0) -> None:
+    deadline = time.monotonic() + timeout
+    while backend.jobRunning and time.monotonic() < deadline:
+        app.processEvents()
+        time.sleep(0.02)
+    app.processEvents()
+    if backend.jobRunning:
+        raise TimeoutError("visual-matrix background operation exceeded its deadline")
 
 
 def main() -> int:
@@ -68,8 +79,7 @@ def main() -> int:
                         return 3
                     records.append({"theme": theme, "viewport": [width, height], "page": page, "sha256": file_hash(target), "bytes": target.stat().st_size})
                 backend.importCsv(str(root) + "/missing.csv")
-                for _ in range(4):
-                    app.processEvents()
+                _wait_for_job(app, backend)
                 target = output / f"{theme}-{scale_label}-failure.png"
                 image = window.grabWindow()
                 if image.isNull() or not image.save(str(target)):
@@ -77,6 +87,7 @@ def main() -> int:
                 records.append({"theme": theme, "viewport": [width, height], "page": "failure", "sha256": file_hash(target), "bytes": target.stat().st_size})
                 backend.navigate("home")
         window.close()
+        backend.shutdown()
         service.close()
     manifest = {"schema_version": 1, "captures": records, "checks": {"nonempty": all(item["bytes"] > 5000 for item in records), "count": len(records)}}
     (output / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

@@ -23,6 +23,18 @@ Item {
         {"key": "history", "label": qsTr("历史"), "glyph": "◷"}
     ]
 
+    function navigateLater(key) {
+        Qt.callLater(function() {
+            if (root.backend) root.backend.navigate(key)
+        })
+    }
+
+    function performLater(key, target) {
+        Qt.callLater(function() {
+            if (root.backend) root.backend.perform(key, target)
+        })
+    }
+
     FileDialog {
         id: csvDialog
         title: qsTr("选择市场数据 CSV")
@@ -127,7 +139,7 @@ Item {
                         flat: true
                         activeFocusOnTab: true
                         Accessible.name: modelData.label
-                        onClicked: { if (root.backend) root.backend.navigate(modelData.key) }
+                        onClicked: root.navigateLater(modelData.key)
                         contentItem: RowLayout {
                             spacing: Theme.space2
                             Text {
@@ -168,7 +180,7 @@ Item {
                     flat: true
                     activeFocusOnTab: true
                     Accessible.name: qsTr("设置")
-                    onClicked: { if (root.backend) root.backend.openSettings() }
+                    onClicked: Qt.callLater(function() { if (root.backend) root.backend.openSettings() })
                     contentItem: Text {
                         text: root.compact ? "⚙" : qsTr("设置")
                         color: Theme.textPrimary
@@ -191,7 +203,7 @@ Item {
                     flat: true
                     activeFocusOnTab: true
                     Accessible.name: qsTr("环境诊断")
-                    onClicked: { if (root.backend) root.backend.navigate("diagnostics") }
+                    onClicked: root.navigateLater("diagnostics")
                     contentItem: Text {
                         text: root.compact ? "ⓘ" : qsTr("环境诊断")
                         color: Theme.textPrimary
@@ -225,14 +237,18 @@ Item {
                 page: root.backend ? root.backend.currentPagePayload : ({})
                 reducedMotion: root.backend ? root.backend.reducedMotion : false
                 jobRunning: root.backend ? root.backend.jobRunning : false
+                jobProgress: root.backend ? root.backend.jobProgress : 0
+                jobStage: root.backend ? root.backend.jobStage : ""
+                jobElapsedSeconds: root.backend ? root.backend.jobElapsedSeconds : 0
+                jobLogs: root.backend ? root.backend.jobLogs : []
                 themeMode: root.backend ? root.backend.themeMode : "system"
-                onNavigate: target => { if (root.backend) root.backend.navigate(target) }
+                onNavigate: target => root.navigateLater(target)
                 onPrimaryAction: (key, target) => {
                     if (key === "import-csv") csvDialog.open()
                     else if (key === "import-bundled-data" && root.backend) root.backend.importBundledData()
                     else if (key === "import-provider-package") providerDialog.open()
                     else if (key === "export-result") exportDialog.open()
-                    else if (root.backend) root.backend.perform(key, target)
+                    else root.performLater(key, target)
                 }
                 onSecondaryAction: (key, target) => {
                     if (key === "import-csv") csvDialog.open()
@@ -240,7 +256,7 @@ Item {
                     else if (key === "import-provider-package") providerDialog.open()
                     else if (key === "export-result") exportDialog.open()
                     else if (key === "choose-content-root") contentRootDialog.open()
-                    else if (root.backend) root.backend.perform(key, target)
+                    else root.performLater(key, target)
                 }
                 onCancelJob: { if (root.backend) root.backend.cancelTraining() }
                 onThemeRequested: value => { if (root.backend) root.backend.setTheme(value) }

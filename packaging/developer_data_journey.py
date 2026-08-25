@@ -110,7 +110,25 @@ def main() -> int:
             raise RuntimeError(f"training finished on unexpected page: {backend.currentPage}")
 
         run = next(item for item in service.runs(100) if item.get("state") == "SUCCEEDED")
-        result_path = service.paths.results / str(run["id"]) / "result.csv"
+        result_dir = service.paths.results / str(run["id"])
+        result_path = result_dir / "result.csv"
+        analytics_path = result_dir / "analytics.json"
+        if not analytics_path.is_file():
+            raise RuntimeError("training did not publish its cached result analytics")
+        training_logs = list(backend.jobLogs)
+        observed_stages = [str(item.get("stage", "")) for item in training_logs]
+        required_stages = {
+            "checking",
+            "preparing",
+            "training",
+            "predicting",
+            "analysing",
+            "publishing",
+            "succeeded",
+        }
+        missing_stages = sorted(required_stages.difference(observed_stages))
+        if missing_stages:
+            raise RuntimeError(f"training progress omitted stages: {', '.join(missing_stages)}")
         result_sha256 = file_hash(result_path)
         if result_sha256 != EXPECTED_SHA256:
             raise RuntimeError(f"result hash mismatch: {result_sha256} != {EXPECTED_SHA256}")
@@ -127,6 +145,8 @@ def main() -> int:
                 "result_sha256": result_sha256,
                 "result_path": str(output),
                 "screenshot_sha256": file_hash(result_image),
+                "analytics_sha256": file_hash(analytics_path),
+                "training_logs": training_logs,
             }
         )
 

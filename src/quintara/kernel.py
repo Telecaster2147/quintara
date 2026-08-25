@@ -99,7 +99,11 @@ def kernel_source_hash() -> str:
 
 def _market_bytes(market: pd.DataFrame) -> bytes:
     ordered = market.sort_values(["股票代码", "日期"]).copy()
-    return ordered.to_csv(index=False, date_format="%Y-%m-%d").encode()
+    return ordered.to_csv(
+        index=False,
+        date_format="%Y-%m-%d",
+        lineterminator="\n",
+    ).encode()
 
 
 def _apply_product_label(frame: pd.DataFrame, market: pd.DataFrame, *, contract: str) -> pd.DataFrame:

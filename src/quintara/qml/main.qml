@@ -1,5 +1,5 @@
 import QtQuick
-import QtQuick.Controls
+import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import Quintara
 
@@ -32,73 +32,96 @@ ApplicationWindow {
 
     Dialog {
         id: updatePlanDialog
+        objectName: "updatePlanDialog"
         parent: Overlay.overlay
         anchors.centerIn: parent
         width: Math.min(680, window.width - Theme.space4 * 2)
+        height: Math.min(implicitHeight, Math.max(320, window.height - Theme.space4 * 2))
         modal: true
-        closePolicy: Popup.CloseOnEscape
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
         title: qsTr("确认 BaoStock 数据计划")
         standardButtons: Dialog.NoButton
         padding: Theme.space4
         background: Rectangle { color: Theme.surface; radius: Theme.radiusLarge; border.color: Theme.outline }
-        contentItem: ColumnLayout {
-            spacing: Theme.space2
-            Text {
-                Layout.fillWidth: true
-                text: qsTr("发布前预览")
-                color: Theme.primary
-                font.pixelSize: Theme.captionSize
-                font.weight: Font.DemiBold
-            }
-            Text {
-                Layout.fillWidth: true
-                text: qsTr("从 %1 更新至 %2").arg(window.backend.dataUpdatePreview.current_cutoff || "尚无数据").arg(window.backend.dataUpdatePreview.target_cutoff || "—")
-                color: Theme.textPrimary
-                font.pixelSize: Theme.titleSize
-                font.weight: Font.DemiBold
-                wrapMode: Text.Wrap
-            }
-            Repeater {
-                model: [
-                    {"label": qsTr("股票池与数量"), "value": (window.backend.dataUpdatePreview.membership_route || "PIT_BASELINE") + " · " + (window.backend.dataUpdatePreview.stock_count || 0) + qsTr(" 只")},
-                    {"label": qsTr("新增交易日"), "value": (window.backend.dataUpdatePreview.start_session || "—") + " · " + (window.backend.dataUpdatePreview.trading_sessions || 0) + qsTr(" 个交易日")},
-                    {"label": qsTr("字段与复权"), "value": (window.backend.dataUpdatePreview.fields || "—") + " · " + (window.backend.dataUpdatePreview.adjustflag || "—")},
-                    {"label": qsTr("原数据口径"), "value": (window.backend.dataUpdatePreview.current_adjustment || "未标记") + " · " + JSON.stringify(window.backend.dataUpdatePreview.current_units || {})},
-                    {"label": qsTr("预计下载"), "value": Math.round((window.backend.dataUpdatePreview.estimated_download_bytes || 0) / 1024 / 1024 * 10) / 10 + " MiB"},
-                    {"label": qsTr("磁盘预算"), "value": Math.round((window.backend.dataUpdatePreview.disk_required_bytes || 0) / 1024 / 1024) + " MiB / " + Math.round((window.backend.dataUpdatePreview.disk_free_bytes || 0) / 1024 / 1024) + " MiB " + (window.backend.dataUpdatePreview.disk_ok ? qsTr("可用") : qsTr("需更换工作目录"))},
-                    {"label": qsTr("保存位置"), "value": window.backend.dataUpdatePreview.content_root || "—"},
-                    {"label": qsTr("身份变化"), "value": window.backend.dataUpdatePreview.identity_change || "—"}
-                ]
-                delegate: Frame {
-                    id: planRow
-                    required property var modelData
+        contentItem: ScrollView {
+            id: updatePlanScroll
+            objectName: "updatePlanScroll"
+            implicitHeight: Math.min(planContent.implicitHeight, Math.max(160, window.height - 250))
+            contentWidth: availableWidth
+            contentHeight: planContent.implicitHeight
+            clip: true
+            ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+            ScrollBar.vertical.policy: ScrollBar.AsNeeded
+
+            ColumnLayout {
+                id: planContent
+                width: updatePlanScroll.availableWidth
+                spacing: Theme.space2
+                Text {
                     Layout.fillWidth: true
-                    padding: Theme.space2
-                    background: Rectangle { color: Theme.surfaceRaised; radius: Theme.radiusSmall; border.color: Theme.outline }
-                    contentItem: ColumnLayout {
-                        Text { text: planRow.modelData.label; color: Theme.textMuted; font.pixelSize: Theme.captionSize }
-                        TextEdit {
-                            Layout.fillWidth: true
-                            text: planRow.modelData.value
-                            readOnly: true
-                            selectByMouse: true
-                            wrapMode: TextEdit.WrapAnywhere
-                            color: Theme.textPrimary
+                    text: qsTr("发布前预览")
+                    color: Theme.primary
+                    font.pixelSize: Theme.captionSize
+                    font.weight: Font.DemiBold
+                }
+                Text {
+                    Layout.fillWidth: true
+                    text: qsTr("从 %1 更新至 %2").arg(window.backend.dataUpdatePreview.current_cutoff || "尚无数据").arg(window.backend.dataUpdatePreview.target_cutoff || "—")
+                    color: Theme.textPrimary
+                    font.pixelSize: Theme.titleSize
+                    font.weight: Font.DemiBold
+                    wrapMode: Text.Wrap
+                }
+                Repeater {
+                    model: [
+                        {"label": qsTr("股票池与数量"), "value": (window.backend.dataUpdatePreview.membership_route || "PIT_BASELINE") + " · " + (window.backend.dataUpdatePreview.stock_count || 0) + qsTr(" 只")},
+                        {"label": qsTr("新增交易日"), "value": (window.backend.dataUpdatePreview.start_session || "—") + " · " + (window.backend.dataUpdatePreview.trading_sessions || 0) + qsTr(" 个交易日")},
+                        {"label": qsTr("字段与复权"), "value": (window.backend.dataUpdatePreview.fields || "—") + " · " + (window.backend.dataUpdatePreview.adjustflag || "—")},
+                        {"label": qsTr("原数据口径"), "value": (window.backend.dataUpdatePreview.current_adjustment || "未标记") + " · " + JSON.stringify(window.backend.dataUpdatePreview.current_units || {})},
+                        {"label": qsTr("预计下载"), "value": Math.round((window.backend.dataUpdatePreview.estimated_download_bytes || 0) / 1024 / 1024 * 10) / 10 + " MiB"},
+                        {"label": qsTr("磁盘预算"), "value": Math.round((window.backend.dataUpdatePreview.disk_required_bytes || 0) / 1024 / 1024) + " MiB / " + Math.round((window.backend.dataUpdatePreview.disk_free_bytes || 0) / 1024 / 1024) + " MiB " + (window.backend.dataUpdatePreview.disk_ok ? qsTr("可用") : qsTr("需更换工作目录"))},
+                        {"label": qsTr("保存位置"), "value": window.backend.dataUpdatePreview.content_root || "—"},
+                        {"label": qsTr("身份变化"), "value": window.backend.dataUpdatePreview.identity_change || "—"}
+                    ]
+                    delegate: Frame {
+                        id: planRow
+                        required property var modelData
+                        Layout.fillWidth: true
+                        padding: Theme.space2
+                        background: Rectangle { color: Theme.surfaceRaised; radius: Theme.radiusSmall; border.color: Theme.outline }
+                        contentItem: ColumnLayout {
+                            Text { text: planRow.modelData.label; color: Theme.textMuted; font.pixelSize: Theme.captionSize }
+                            TextEdit {
+                                Layout.fillWidth: true
+                                text: planRow.modelData.value
+                                readOnly: true
+                                selectByMouse: true
+                                wrapMode: TextEdit.WrapAnywhere
+                                color: Theme.textPrimary
+                            }
                         }
                     }
                 }
+                Text {
+                    Layout.fillWidth: true
+                    text: qsTr("所有下载先写入暂存区。登录、查询、字段、单位、复权、PIT、OHLC、磁盘或取消检查有异常时，当前活动数据继续保持原版本。")
+                    color: Theme.textMuted
+                    wrapMode: Text.Wrap
+                }
             }
-            Text {
-                Layout.fillWidth: true
-                text: qsTr("所有下载先写入暂存区。登录、查询、字段、单位、复权、PIT、OHLC、磁盘或取消检查有异常时，当前活动数据继续保持原版本。")
-                color: Theme.textMuted
-                wrapMode: Text.Wrap
-            }
-            RowLayout {
-                Layout.fillWidth: true
+        }
+        footer: Frame {
+            padding: Theme.space3
+            background: Rectangle { color: Theme.surface; border.color: Theme.outline }
+            contentItem: RowLayout {
                 Item { Layout.fillWidth: true }
-                AppButton { text: qsTr("返回调整"); onClicked: updatePlanDialog.close() }
                 AppButton {
+                    objectName: "updatePlanCancelButton"
+                    text: qsTr("返回调整")
+                    onClicked: updatePlanDialog.close()
+                }
+                AppButton {
+                    objectName: "updatePlanConfirmButton"
                     primary: true
                     enabled: Boolean(window.backend.dataUpdatePreview.disk_ok)
                     text: qsTr("确认并开始")
@@ -109,6 +132,9 @@ ApplicationWindow {
                 }
             }
         }
+        onOpened: Qt.callLater(function() {
+            if (updatePlanScroll.contentItem) updatePlanScroll.contentItem.contentY = 0
+        })
     }
 
     ConfirmDialog {

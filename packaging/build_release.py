@@ -25,7 +25,13 @@ def _sha256(path: Path) -> str:
 def _artifact_path(name: str) -> Path:
     """Resolve the platform-specific PyInstaller output name."""
     plain = ROOT / "dist" / name
-    return plain if plain.is_file() else ROOT / "dist" / f"{name}.exe"
+    windows = ROOT / "dist" / f"{name}.exe"
+    # A release workspace may retain both Linux and Windows artifacts.  Select
+    # the output for the interpreter that performed this build instead of
+    # silently hashing the other platform's stale file.
+    if sys.platform == "win32":
+        return windows if windows.is_file() else plain
+    return plain if plain.is_file() else windows
 
 
 def main() -> int:

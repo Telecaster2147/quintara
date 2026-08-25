@@ -3,10 +3,14 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import logging
 import os
+import sys
+from logging.handlers import RotatingFileHandler
 from pathlib import Path
+from types import TracebackType
 
-from PySide6.QtCore import QUrl
+from PySide6.QtCore import QtMsgType, QUrl, qInstallMessageHandler
 from PySide6.QtGui import QGuiApplication, QIcon
 from PySide6.QtNetwork import QLocalServer, QLocalSocket
 from PySide6.QtQml import QQmlApplicationEngine
@@ -18,6 +22,37 @@ from .display import prepare_qt_environment
 from .platform import FileLock, LockBusy
 from .qml_backend import QmlBackend
 from .service import QuintaraService
+
+LOG = logging.getLogger(__name__)
+
+
+def _configure_logging(paths: AppPaths) -> None:
+    log_path = paths.logs / "quintara-gui.log"
+    handler = RotatingFileHandler(
+        log_path,
+        maxBytes=2 * 1024 * 1024,
+        backupCount=2,
+        encoding="utf-8",
+    )
+    handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s %(message)s"))
+    root_logger = logging.getLogger()
+    if not any(getattr(item, "baseFilename", None) == str(log_path) for item in root_logger.handlers):
+        root_logger.addHandler(handler)
+    root_logger.setLevel(logging.INFO)
+
+    def handle_exception(
+        exc_type: type[BaseException],
+        exc: BaseException,
+        traceback: TracebackType | None,
+    ) -> None:
+        LOG.critical("Unhandled GUI exception", exc_info=(exc_type, exc, traceback))
+
+    def handle_qt_message(message_type: QtMsgType, context: object, message: str) -> None:
+        level = logging.ERROR if message_type in {QtMsgType.QtCriticalMsg, QtMsgType.QtFatalMsg} else logging.WARNING
+        LOG.log(level, "Qt/QML: %s", message)
+
+    sys.excepthook = handle_exception
+    qInstallMessageHandler(handle_qt_message)
 
 
 def qml_root() -> Path:
@@ -56,6 +91,7 @@ def launch(root: str | Path | None = None) -> int:
 
     paths = AppPaths.discover(root)
     paths.ensure()
+    _configure_logging(paths)
     instance_lock = FileLock(paths.root / "gui-instance.lock")
     server_name = f"quintara-{hashlib.sha256(str(paths.root).encode()).hexdigest()[:20]}"
     try:

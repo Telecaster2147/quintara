@@ -5,6 +5,7 @@ import json
 import logging
 import re
 import urllib.request
+from collections.abc import Callable
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any, cast
@@ -325,8 +326,21 @@ class QuintaraService:
         strategy: str = "balanced",
         label_contract: str = DEFAULT_LABEL,
         config: dict[str, Any] | None = None,
+        progress: Callable[[dict[str, Any]], None] | None = None,
     ) -> dict[str, Any]:
         """Run prepare → train → rank → atomic artifact publication."""
+        def notify(stage: str, message: str, fraction: float, *, severity: str = "info") -> None:
+            if progress is not None:
+                progress(
+                    {
+                        "stage": stage,
+                        "message": message,
+                        "progress": fraction,
+                        "severity": severity,
+                    }
+                )
+
+        notify("checking", "正在核对研究声明、活动数据和股票池", 0.02)
         if self.consent_status()["status"] != "CONFIRMED":
             raise ServiceError(f"先确认本地研究免责声明后再运行（quintara consent accept；版本 {CONSENT_VERSION}）")
         if strategy not in STRATEGIES:
@@ -400,6 +414,7 @@ class QuintaraService:
             config=cfg,
         )
         if cached is not None:
+            notify("cached", "数据、策略和模型身份未变化，正在复用已验证结果", 1.0, severity="success")
             return self._record_cached_run(cached, route, universe_id, data_manifest)
         run_id = new_id("run")
         self._active_run_id = run_id
@@ -407,7 +422,8 @@ class QuintaraService:
         context = JobContext(self.paths, run_id)
         try:
             with FileLock(self.paths.lock):
-                context.emit("preparing", "KERNEL_PREPARE", "正在检查数据和标签")
+                notify("preparing", "正在读取完整历史并构造训练标签", 0.08)
+                context.emit("preparing", "KERNEL_PREPARE", "正在检查数据和标签", progress=0.08)
                 context.checkpoint("preparing")
                 prepared = prepare(market, membership, listing, mode=route, config=cfg, contract=label_contract)
                 if reference_profile:
@@ -417,10 +433,12 @@ class QuintaraService:
                     window_start = prepared.cutoff - pd.DateOffset(years=years)
                     prepared.frame = prepared.frame[pd.to_datetime(prepared.frame["日期"]) >= window_start].copy()
                     prepared.report["training_years"] = years
-                context.emit("training", "KERNEL_TRAIN", "正在训练模型")
+                notify("training", "特征已准备完成，正在进行 CPU 模型训练", 0.62)
+                context.emit("training", "KERNEL_TRAIN", "正在训练模型", progress=0.62)
                 context.checkpoint("training")
                 model = train(prepared, mode=route, universe_id=universe_id, config=cfg, source_hash=kernel_source_hash())
-                context.emit("predicting", "KERNEL_PREDICT", "正在生成候选排名")
+                notify("predicting", "模型训练完成，正在生成候选排名", 0.82)
+                context.emit("predicting", "KERNEL_PREDICT", "正在生成候选排名", progress=0.82)
                 context.checkpoint("predicting")
                 result, ranking = predict(model)
                 if reference_profile:
@@ -438,27 +456,48 @@ class QuintaraService:
                             f"actual={actual.to_dict(orient='records')} expected={expected.to_dict(orient='records')}"
                         )
                     expected_hash = str(data_metadata.get("reference_result_sha256") or "")
-                    actual_hash = content_hash(actual.to_csv(index=False).encode("utf-8"))
+                    actual_hash = content_hash(
+                        actual.to_csv(index=False, lineterminator="\n").encode("utf-8")
+                    )
                     if expected_hash and actual_hash != expected_hash:
                         raise ServiceError(
                             f"开发者数据结果哈希不一致：{actual_hash} != {expected_hash}"
                         )
                     prepared.report["reference_result_match"] = True
                     prepared.report["reference_result_sha256"] = actual_hash
-                context.emit("publishing", "ARTIFACT_PUBLISH", "正在发布结果")
+                notify("analysing", "正在计算组合风险摘要和相关性", 0.9)
+                analytics = self._result_analytics(market, result, prepared.cutoff)
+                notify("publishing", "校验已通过，正在保存模型和 Top-5 结果", 0.96)
+                context.emit("publishing", "ARTIFACT_PUBLISH", "正在发布结果", progress=0.96)
                 context.checkpoint("publishing")
-                artifact = self._publish_artifacts(run_id, route, universe_id, strategy, cfg, prepared, model, result, ranking, data_manifest, listing)
+                artifact = self._publish_artifacts(
+                    run_id,
+                    route,
+                    universe_id,
+                    strategy,
+                    cfg,
+                    prepared,
+                    model,
+                    result,
+                    ranking,
+                    data_manifest,
+                    listing,
+                    analytics,
+                )
                 context.emit("succeeded", "JOB_SUCCEEDED", "训练和预测已完成", Severity.PASS, 1.0)
+                notify("succeeded", "训练完成，Top-5 结果已经安全发布", 1.0, severity="success")
                 context.finish()
             self.registry.finish_run(run_id, JobState.SUCCEEDED.value, data_generation=data_manifest["generation"], model_generation=artifact["model_generation"], result_generation=artifact["result_generation"], stage="succeeded", progress=1.0)
             return artifact
         except JobCancelled as exc:
+            notify("cancelled", "训练已在安全点停止，上一份结果保持可用", 0.0, severity="warning")
             context.emit("cancelled", "JOB_CANCELLED", "作业已取消", Severity.WARNING)
             context.finish()
             self.registry.finish_run(run_id, JobState.CANCELLED.value, error=str(exc), stage="cancelled")
             raise ServiceError("作业已取消") from exc
         except Exception as exc:
             LOG.exception("Quintara run %s failed", run_id)
+            notify("failed", "训练在当前阶段停止，请查看下方建议和技术详情", 0.0, severity="error")
             context.emit("failed", "JOB_FAILED", str(exc), Severity.FAIL)
             context.finish()
             self.registry.finish_run(run_id, JobState.FAILED.value, error=str(exc), stage="failed")
@@ -488,6 +527,7 @@ class QuintaraService:
         ranking: pd.DataFrame,
         data_manifest: dict[str, Any],
         listing: pd.DataFrame,
+        analytics: dict[str, Any],
     ) -> dict[str, Any]:
         staging_root = self.paths.results_staging / run_id
         root = staging_root
@@ -497,8 +537,8 @@ class QuintaraService:
         model_path = self.paths.models / f"{model_generation}.txt"
         model_path.parent.mkdir(parents=True, exist_ok=True)
         model.booster.save_model(str(model_path))
-        result.to_csv(root / "result.csv", index=False)
-        ranking.to_csv(root / "ranking.csv", index=False)
+        result.to_csv(root / "result.csv", index=False, lineterminator="\n")
+        ranking.to_csv(root / "ranking.csv", index=False, lineterminator="\n")
         listing_view = listing.copy()
         listing_view["stock_id"] = listing_view["stock_id"].astype(str).str.extract(r"(\d{6})")[0].str.zfill(6)
         name_column = next((column for column in ("name", "stock_name", "code_name") if column in listing_view.columns), None)
@@ -507,6 +547,7 @@ class QuintaraService:
         result_view = result.merge(ranking[["stock_id", "prediction", "predicted_rank"]], on="stock_id", how="left")
         result_view = result_view.merge(metadata_view, on="stock_id", how="left")
         result_view.to_json(root / "result_view.json", orient="records", force_ascii=False, indent=2)
+        atomic_json(root / "analytics.json", analytics)
         explanations: dict[str, list[dict[str, Any]]] = {}
         cutoff_rows = prepared.frame[prepared.frame["日期"] == prepared.cutoff]
         for stock_id in result["stock_id"].astype(str).str.zfill(6):
@@ -604,12 +645,14 @@ class QuintaraService:
         )
         source_root = self.paths.results / str(cached["run_id"])
         explanation_path = source_root / "explanations.json"
+        source_result = pd.read_csv(source_root / "result.csv")
+        self._load_or_build_result_analytics(str(cached["run_id"]), manifest, source_result)
         return {
             "run_id": run_id,
             "source_run_id": cached["run_id"],
             "result_generation": manifest.get("result_generation"),
             "model_generation": manifest.get("model_generation"),
-            "result": pd.read_csv(source_root / "result.csv").to_dict(orient="records"),
+            "result": source_result.to_dict(orient="records"),
             "ranking": pd.read_csv(source_root / "ranking.csv").to_dict(orient="records"),
             "explanations": json.loads(explanation_path.read_text(encoding="utf-8")) if explanation_path.exists() else {},
             "manifest": manifest,
@@ -628,20 +671,45 @@ class QuintaraService:
         manifest = self.result_manifest(run_id)
         result_path = self.paths.results / run_id / "result.csv"
         result = pd.read_csv(result_path)
-        data_root = self.paths.data_generations / str(manifest["data_generation"])
-        market = pd.read_csv(data_root / "market.csv", parse_dates=["日期"])
-        cutoff = cast(pd.Timestamp, pd.Timestamp(manifest["model_identity"]["training_cutoff"]))
-        stock_ids = result["stock_id"].astype(str).str.zfill(6).tolist()
+        analytics = self._load_or_build_result_analytics(run_id, manifest, result)
         return {
             "manifest": manifest,
-            "risk": {stock_id: risk_metrics(market, stock_id, cutoff) for stock_id in stock_ids},
-            "correlation": correlation_matrix(market, stock_ids, cutoff),
+            "risk": analytics["risk"],
+            "correlation": analytics["correlation"],
             "result_view": json.loads((self.paths.results / run_id / "result_view.json").read_text(encoding="utf-8")) if (self.paths.results / run_id / "result_view.json").exists() else [],
             "explanations": json.loads((self.paths.results / run_id / "explanations.json").read_text(encoding="utf-8")) if (self.paths.results / run_id / "explanations.json").exists() else {},
             "identity_badge": manifest.get("route"),
             "pit_warning": "当前结果使用静态成员回看，存在幸存者偏差。" if manifest.get("route") == UniverseMode.NON_PIT_FALLBACK.value else None,
             "disclaimer": "模型排名和特征影响用于研究，不是因果证明或交易指令。",
         }
+
+    @staticmethod
+    def _result_analytics(
+        market: pd.DataFrame,
+        result: pd.DataFrame,
+        cutoff: pd.Timestamp,
+    ) -> dict[str, Any]:
+        stock_ids = result["stock_id"].astype(str).str.zfill(6).tolist()
+        return {
+            "risk": {stock_id: risk_metrics(market, stock_id, cutoff) for stock_id in stock_ids},
+            "correlation": correlation_matrix(market, stock_ids, cutoff),
+        }
+
+    def _load_or_build_result_analytics(
+        self,
+        run_id: str,
+        manifest: dict[str, Any],
+        result: pd.DataFrame,
+    ) -> dict[str, Any]:
+        analytics_path = self.paths.results / run_id / "analytics.json"
+        if analytics_path.exists():
+            return cast(dict[str, Any], json.loads(analytics_path.read_text(encoding="utf-8")))
+        data_root = self.paths.data_generations / str(manifest["data_generation"])
+        market = pd.read_csv(data_root / "market.csv", parse_dates=["日期"])
+        cutoff = cast(pd.Timestamp, pd.Timestamp(manifest["model_identity"]["training_cutoff"]))
+        analytics = self._result_analytics(market, result, cutoff)
+        atomic_json(analytics_path, analytics)
+        return analytics
 
     def export_result(self, run_id: str, output: str | Path | None = None, *, overwrite: bool = False) -> dict[str, Any]:
         run_id = self._safe_run_id(run_id)
@@ -658,7 +726,10 @@ class QuintaraService:
         frame["mode"] = manifest.get("route")
         from .platform import atomic_write
 
-        atomic_write(destination, frame.to_csv(index=False).encode("utf-8"))
+        atomic_write(
+            destination,
+            frame.to_csv(index=False, lineterminator="\n").encode("utf-8"),
+        )
         provenance = destination.with_suffix(destination.suffix + ".manifest.json")
         export_manifest = manifest | {"export_sha256": content_hash(destination.read_bytes()), "exported_at": now_utc()}
         atomic_json(provenance, export_manifest)

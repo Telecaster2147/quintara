@@ -353,7 +353,17 @@ class ProductUseCases:
         data = self.data()
         universe = self.universes()
         train = self.training()
-        results = self.results()
+        result_ready = any(
+            row.get("state") in {JobState.SUCCEEDED.value, JobState.CACHED.value}
+            for row in self.service.runs(1)
+        )
+        results = PageDTO(
+            key="results",
+            title="研究结果",
+            eyebrow="Top-5 组合",
+            status=PageStatus.READY if result_ready else PageStatus.EMPTY,
+            summary="最近一次 Top-5 结果已就绪。" if result_ready else "完成一次训练后会在这里展示研究组合。",
+        )
         cards = tuple(
             {
                 "title": item.title,

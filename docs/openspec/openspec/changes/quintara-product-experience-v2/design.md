@@ -190,6 +190,14 @@ GUI 启动的 Windows 子进程统一经过平台端口，使用 `CREATE_NO_WIND
 
 请求身份由连接器版本、代码集合、起止交易日、行情/估值字段、`adjustflag=3` 和股票池路线共同哈希。每只证券下载后原子更新检查点；所有新行与旧活动 generation 合并后执行重复键、日期边界、OHLC、PIT 重叠、字段、单位和复权合同检查。安装包或 CSV 更新发布为 `source=baostock` 的派生 generation，记录父 generation、原来源和合同复核；原 ZIP、CSV、旧 generation、模型和结果均保持不可变。活动指针仅在完整发布后切换，无新增交易日时返回 no-change 且不使模型过期。
 
+### 13. 训练可观察性与页面响应采用预计算和异步边界
+
+训练服务通过结构化回调发布 `checking → preparing → training → predicting → analysing → publishing → succeeded/failed/cancelled`。QML 后端只在主线程更新页面状态，工作线程执行数据导入、训练、迁移与导出；每条用户日志包含阶段、自然语言消息、级别和已用时间，异常终态另保留脱敏技术类型、原始消息和恢复动作。界面不从自由文本推断进度，阶段映射和比例由服务明确提供。
+
+风险窗口和 Top-5 相关性在训练工作线程持有完整行情时计算，作为 `analytics.json` 与结果原子发布。首页只读取运行索引判断结果是否存在，结果页读取小型 manifest、result view、explanations 和 analytics；旧结果缺少缓存时执行一次兼容生成并持久化，后续不再重读完整行情。
+
+QML 点击处理通过下一事件循环调度后台命令，使按下/焦点反馈先渲染；长 I/O 不驻留 GUI 线程。共享 `WorkspacePage` 明确绑定内容列 `implicitHeight`、关闭水平滚动并启用按需右侧垂直滚动条，覆盖卡片、表格、路径、日志和提示组合超过视口的情况。BaoStock 预览对话框把可变高度说明置于独立滚动内容区，将返回和确认操作固定在页脚；数据更新复用任务日志面板，显示阶段、真实进度、已用时间和终态。性能回归以生产数据页面构造耗时、最小窗口滚动范围和最后控件可达性为准。
+
 ## Risks / Trade-offs
 
 - **[QML 迁移扩大短期改动面]** → 先固定 Python 应用服务合同和 DTO，再按页面垂直迁移；旧 Widgets 只保留为短期对照夹具，不进入最终发行入口。

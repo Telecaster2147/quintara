@@ -60,7 +60,7 @@ class FileLock:
                     pid = int(metadata.get("pid", 0))
                     if pid and pid != os.getpid():
                         os.kill(pid, 0)
-                except (OSError, ValueError, json.JSONDecodeError):
+                except (OSError, SystemError, ValueError, json.JSONDecodeError):
                     # A lock with a dead owner or malformed metadata is stale.
                     self.path.unlink(missing_ok=True)
                     continue

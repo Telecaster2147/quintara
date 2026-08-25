@@ -145,7 +145,7 @@ def export_issue_sample(
     result = pd.concat(rows, ignore_index=True) if rows else pd.DataFrame(columns=pd.Index(columns))
     destination = Path(output).expanduser()
     destination.parent.mkdir(parents=True, exist_ok=True)
-    result.to_csv(destination, index=False, encoding="utf-8")
+    result.to_csv(destination, index=False, encoding="utf-8", lineterminator="\n")
     return destination
 
 

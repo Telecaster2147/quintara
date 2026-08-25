@@ -20,6 +20,15 @@ from quintara.qml_gui import qml_root
 from quintara.service import QuintaraService
 
 
+def _wait_for_job(app: QApplication, backend: QmlBackend, timeout: float = 60) -> None:
+    deadline = time.monotonic() + timeout
+    while backend.jobRunning and time.monotonic() < deadline:
+        app.processEvents()
+        time.sleep(0.02)
+    app.processEvents()
+    assert not backend.jobRunning
+
+
 def _luminance(color: str) -> float:
     value = QColor(color)
     channels = [value.redF(), value.greenF(), value.blueF()]
@@ -76,6 +85,17 @@ def test_design_tokens_meet_core_contrast_and_accessibility_contract():
     assert "reducedMotion" in source
 
 
+def test_workspace_long_content_has_real_vertical_scroll_contract():
+    source = (qml_root() / "Quintara/pages/WorkspacePage.qml").read_text(encoding="utf-8")
+    assert "contentHeight: contentColumn.implicitHeight" in source
+    assert "ScrollBar.vertical: ScrollBar" in source
+    assert "policy: ScrollBar.AlwaysOn" in source
+    assert "visible: root.contentHeight > root.availableHeight + 1" in source
+    assert "interactive: true" in source
+    assert "opacity: verticalBar.visible" in source
+    assert "ScrollBar.horizontal.policy: ScrollBar.AlwaysOff" in source
+
+
 def test_theme_and_reduced_motion_persist_across_backend_instances(app_root):
     app = QApplication.instance() or QApplication([])
     del app
@@ -124,7 +144,63 @@ def test_baostock_is_visible_as_third_source_and_update_has_preview_contract(app
         assert "我自己的 CSV" in onboarding
         for key in ("target_cutoff", "stock_count", "adjustflag", "disk_required_bytes", "content_root"):
             assert key in main
+        assert "contentItem: ScrollView" in main
+        assert "footer: Frame" in main
+        assert "updatePlanConfirmButton" in main
+        assert "CloseOnPressOutside" in main
     finally:
+        service.close()
+
+
+def test_baostock_preview_keeps_confirm_action_visible_at_minimum_window(app_root, tmp_path):
+    app = QApplication.instance() or QApplication([])
+    service = QuintaraService(app_root)
+    backend = QmlBackend(ProductUseCases(service))
+    engine = QQmlApplicationEngine()
+    engine.addImportPath(str(qml_root()))
+    engine.setInitialProperties({"backend": backend})
+    engine.load(QUrl.fromLocalFile(str(qml_root() / "main.qml")))
+    try:
+        assert engine.rootObjects()
+        window = engine.rootObjects()[0]
+        window.setWidth(960)
+        window.setHeight(640)
+        window.show()
+        backend._data_update_preview = {  # type: ignore[attr-defined]
+            "current_cutoff": "2026-07-31",
+            "target_cutoff": "2026-08-25",
+            "membership_route": "PIT_BASELINE",
+            "stock_count": 917,
+            "start_session": "2026-08-03",
+            "trading_sessions": 17,
+            "fields": "日线 OHLCV、成交额、换手率、涨跌幅、PE/PS/PCF/PB",
+            "adjustflag": "3（后复权）",
+            "current_adjustment": "3",
+            "current_units": {"amount": "CNY", "volume": "shares"},
+            "estimated_download_bytes": 3_600_000,
+            "disk_required_bytes": 64 * 1024 * 1024,
+            "disk_free_bytes": 194_974 * 1024 * 1024,
+            "disk_ok": True,
+            "content_root": str(app_root),
+            "identity_change": "数据截止日、股票池或字段变化后，旧模型会标记为待重训",
+        }
+        backend.updatePreviewChanged.emit()
+        for _ in range(8):
+            app.processEvents()
+        dialog = window.findChild(QObject, "updatePlanDialog")
+        confirm = window.findChild(QObject, "updatePlanConfirmButton")
+        cancel = window.findChild(QObject, "updatePlanCancelButton")
+        assert dialog is not None and dialog.property("visible")
+        assert float(dialog.property("height")) <= window.height() - 2 * 16
+        assert confirm is not None and confirm.property("visible") and confirm.property("enabled")
+        assert cancel is not None and cancel.property("visible")
+        target = tmp_path / "baostock-preview-minimum.png"
+        assert window.grabWindow().save(str(target))
+        assert target.stat().st_size > 10_000
+    finally:
+        engine.deleteLater()
+        app.processEvents()
+        backend.shutdown()
         service.close()
 
 
@@ -191,20 +267,82 @@ def test_gui_backend_csv_training_top5_and_export_journey(app_root, tmp_path):
         service.onboarding_skip()
         csv_path = Path(__file__).parents[1] / "fixtures/synthetic_market.csv"
         backend.importCsv(str(csv_path))
+        _wait_for_job(app, backend)
         assert backend.currentPagePayload["status"] == "ready"
         backend.startTraining()
-        deadline = time.monotonic() + 60
-        while backend.jobRunning and time.monotonic() < deadline:
-            app.processEvents()
-            time.sleep(0.02)
-        app.processEvents()
-        assert not backend.jobRunning
+        _wait_for_job(app, backend)
         assert backend.currentPage == "results"
         assert len(backend.currentPagePayload["rows"]) == 5
+        stages = [item["stage"] for item in backend.jobLogs]
+        assert {"checking", "preparing", "training", "predicting", "analysing", "publishing", "succeeded"} <= set(stages)
         target = tmp_path / "gui-export.csv"
         backend.exportLatestResult(str(target))
+        _wait_for_job(app, backend)
         assert target.exists()
         assert "research_only" in target.read_text(encoding="utf-8").splitlines()[0]
+    finally:
+        backend.shutdown()
+        service.close()
+
+
+def test_training_failure_keeps_live_stages_and_actionable_error(app_root):
+    app = QApplication.instance() or QApplication([])
+    service = QuintaraService(app_root)
+    backend = QmlBackend(ProductUseCases(service))
+
+    def failing_run(**kwargs):
+        kwargs["progress"]({
+            "stage": "preparing",
+            "message": "正在读取完整历史并构造训练标签",
+            "progress": 0.08,
+            "severity": "info",
+        })
+        kwargs["progress"]({
+            "stage": "training",
+            "message": "特征已准备完成，正在进行 CPU 模型训练",
+            "progress": 0.62,
+            "severity": "info",
+        })
+        raise RuntimeError("lib_lightgbm.dll was not found")
+
+    service.run = failing_run  # type: ignore[method-assign]
+    try:
+        backend.startTraining()
+        _wait_for_job(app, backend)
+        assert [item["stage"] for item in backend.jobLogs][-1] == "failed"
+        assert "训练组件" in backend.currentPagePayload["summary"]
+        assert backend.currentPagePayload["primary_action"]["key"] == "start-training"
+        assert "lib_lightgbm.dll" in backend.currentPagePayload["technical"]["copy_text"]
+    finally:
+        backend.shutdown()
+        service.close()
+
+
+def test_baostock_update_streams_live_stages_to_data_workspace(app_root):
+    app = QApplication.instance() or QApplication([])
+    service = QuintaraService(app_root)
+    backend = QmlBackend(ProductUseCases(service))
+
+    def update_data(*, progress, cancelled):
+        assert not cancelled()
+        progress({"stage": "connecting", "message": "正在连接 BaoStock", "progress": 0.05})
+        progress({"stage": "market", "message": "正在下载行情与扩展字段", "progress": 0.62})
+        progress({"stage": "publish", "message": "正在发布完整版本", "progress": 0.94})
+        return {"generation": "data-test"}
+
+    service.update_data = update_data  # type: ignore[method-assign]
+    try:
+        backend._data_update_preview = {"disk_ok": True}  # type: ignore[attr-defined]
+        backend.confirmDataUpdate()
+        _wait_for_job(app, backend)
+        stages = [item["stage"] for item in backend.jobLogs]
+        assert {"queued", "connecting", "market", "publish", "complete"} <= set(stages)
+        assert backend.currentPage == "data"
+        assert backend.jobProgress == 1.0
+        assert backend.jobLogs[-1]["severity"] == "success"
+        workspace = (qml_root() / "Quintara/pages/WorkspacePage.qml").read_text(encoding="utf-8")
+        assert 'root.page.key === "data"' in workspace
+        assert "数据更新实时进度" in workspace
     finally:
         backend.shutdown()
         service.close()

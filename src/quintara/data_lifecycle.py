@@ -42,7 +42,7 @@ class DataError(RuntimeError):
 
 def _write_csv(frame: pd.DataFrame, path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    frame.to_csv(path, index=False, encoding="utf-8")
+    frame.to_csv(path, index=False, encoding="utf-8", lineterminator="\n")
 
 
 def _normalise_listing(listing: pd.DataFrame) -> pd.DataFrame:

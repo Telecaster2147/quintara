@@ -245,9 +245,11 @@ def test_packaging_has_distinct_gui_and_cli_subsystems_and_icon():
     release_builder = (root / "packaging/build_release.py").read_text(encoding="utf-8")
     installer = (root / "packaging/windows/Quintara.iss").read_text(encoding="utf-8")
     assert "console=False" in gui and "quintara.ico" in gui
+    assert 'collect_dynamic_libs("lightgbm")' in gui and "binaries=lightgbm_binaries" in gui
     assert "PySide6.QtWidgets" not in gui
     assert '../../assets/quintara-icon.png' in (root / "src/quintara/qml/Quintara/AppShell.qml").read_text(encoding="utf-8")
     assert "console=True" in cli
+    assert 'collect_dynamic_libs("lightgbm")' in cli and "binaries=lightgbm_binaries" in cli
     assert '[project.gui-scripts]' in pyproject and 'quintara-gui = "quintara.qml_gui:main"' in pyproject
     assert "from .qml_gui import launch" in cli_source and "from .gui import launch" not in cli_source
     assert 'f"{name}.exe"' in release_builder and "artifacts[path.name]" in release_builder

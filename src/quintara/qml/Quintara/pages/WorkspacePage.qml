@@ -16,10 +16,36 @@ ScrollView {
     signal reducedMotionRequested(bool value)
     property bool reducedMotion: false
     property bool jobRunning: false
+    property real jobProgress: 0.0
+    property string jobStage: ""
+    property int jobElapsedSeconds: 0
+    property var jobLogs: []
     property string themeMode: "system"
 
     contentWidth: availableWidth
+    contentHeight: contentColumn.implicitHeight
+    clip: true
     background: Item {}
+    ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+    ScrollBar.vertical: ScrollBar {
+        id: verticalBar
+        objectName: "workspaceVerticalScrollBar"
+        parent: root
+        x: root.width - width
+        y: 0
+        height: root.height
+        policy: ScrollBar.AlwaysOn
+        visible: root.contentHeight > root.availableHeight + 1
+        interactive: true
+        width: 8
+        contentItem: Rectangle {
+            implicitWidth: 8
+            radius: 4
+            color: Theme.primary
+            opacity: verticalBar.visible ? (verticalBar.pressed ? 0.85 : 0.55) : 0
+        }
+        background: Item {}
+    }
 
     function resetContentPosition() {
         if (root.contentItem) root.contentItem.contentY = 0
@@ -28,6 +54,7 @@ ScrollView {
     Component.onCompleted: Qt.callLater(resetContentPosition)
 
     ColumnLayout {
+        id: contentColumn
         width: root.availableWidth
         spacing: Theme.space3
 
@@ -105,8 +132,84 @@ ScrollView {
         }
         AppButton {
             visible: root.jobRunning
-            text: qsTr("停止任务")
+            text: root.page && root.page.key === "data" ? qsTr("停止数据更新") : qsTr("停止任务")
+            Accessible.name: text
             onClicked: root.cancelJob()
+        }
+
+        Frame {
+            id: jobProgressPanel
+            objectName: "jobProgressPanel"
+            Layout.fillWidth: true
+            visible: Boolean(root.page && (root.page.key === "train" || root.page.key === "data") && root.jobLogs.length > 0)
+            padding: Theme.space3
+            background: Rectangle {
+                color: Theme.surface
+                radius: Theme.radiusMedium
+                border.color: Theme.outline
+            }
+            contentItem: ColumnLayout {
+                spacing: Theme.space2
+                RowLayout {
+                    Layout.fillWidth: true
+                    Text {
+                        Layout.fillWidth: true
+                        text: root.page && root.page.key === "data" ? qsTr("数据更新实时进度") : qsTr("训练实时进度")
+                        color: Theme.textPrimary
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.sectionSize
+                        font.weight: Font.DemiBold
+                    }
+                    Text {
+                        text: qsTr("已用时 %1").arg(root.jobElapsedSeconds < 60
+                            ? qsTr("%1 秒").arg(root.jobElapsedSeconds)
+                            : qsTr("%1 分 %2 秒").arg(Math.floor(root.jobElapsedSeconds / 60)).arg(root.jobElapsedSeconds % 60))
+                        color: Theme.textMuted
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.captionSize
+                    }
+                }
+                ProgressBar {
+                    objectName: "jobProgressBar"
+                    Layout.fillWidth: true
+                    from: 0
+                    to: 1
+                    value: root.jobProgress
+                    indeterminate: root.jobRunning && root.jobProgress <= 0
+                    Accessible.name: (root.page && root.page.key === "data" ? qsTr("数据更新进度 %1%") : qsTr("训练进度 %1%")).arg(Math.round(root.jobProgress * 100))
+                }
+                Repeater {
+                    model: root.jobLogs
+                    delegate: RowLayout {
+                        id: logRow
+                        required property var modelData
+                        Layout.fillWidth: true
+                        spacing: Theme.space2
+                        StatusBadge {
+                            text: logRow.modelData.severity === "error" ? qsTr("失败")
+                                : logRow.modelData.severity === "warning" ? qsTr("提醒")
+                                : logRow.modelData.severity === "success" ? qsTr("完成") : qsTr("进行中")
+                            tone: logRow.modelData.severity === "error" ? "error"
+                                : logRow.modelData.severity === "warning" ? "warning"
+                                : logRow.modelData.severity === "success" ? "success" : "info"
+                        }
+                        Text {
+                            Layout.fillWidth: true
+                            text: logRow.modelData.message || ""
+                            color: Theme.textPrimary
+                            font.family: Theme.fontFamily
+                            font.pixelSize: Theme.bodySize
+                            wrapMode: Text.Wrap
+                        }
+                        Text {
+                            text: qsTr("%1 秒").arg(logRow.modelData.elapsed_seconds || 0)
+                            color: Theme.textMuted
+                            font.family: Theme.fontFamily
+                            font.pixelSize: Theme.captionSize
+                        }
+                    }
+                }
+            }
         }
 
         GridLayout {
