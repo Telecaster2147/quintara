@@ -1,5 +1,5 @@
 #define MyAppName "Quintara"
-#define MyAppVersion "0.2.0"
+#define MyAppVersion "0.2.1"
 #define MyAppPublisher "AFWEF_147"
 #define MyAppExeName "Quintara.exe"
 
@@ -26,6 +26,8 @@ UninstallDisplayIcon={app}\Quintara.exe
 [Files]
 Source: "..\..\dist\Quintara.exe"; DestDir: "{app}"; DestName: "Quintara.exe"; Flags: ignoreversion
 Source: "..\..\dist\quintara-cli.exe"; DestDir: "{app}"; DestName: "quintara-cli.exe"; Flags: ignoreversion
+Source: "..\developer_data\quintara-developer-data-v1.zip"; DestDir: "{app}\data\developer"; Flags: ignoreversion
+Source: "..\developer_data\README.txt"; DestDir: "{app}\data\developer"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\Quintara"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\{#MyAppExeName}"

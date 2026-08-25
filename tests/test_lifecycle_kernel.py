@@ -177,5 +177,6 @@ def test_baostock_update_requires_explicit_non_pit_ack_and_connects_extra_featur
         assert "peTTM" in bundle["market"].columns
         custom = manager.update_baostock(start_date="2024-01-01", end_date="2024-01-06", codes=codes)
         assert custom["metadata"]["membership_route"] == "CUSTOM_UNIVERSE"
+        assert "peTTM" in manager.active_bundle()["market"].columns
     finally:
         registry.close()

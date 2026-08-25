@@ -1,6 +1,6 @@
 """Run ty on first-party product code while preserving the vendored kernel boundary.
 
-The competition kernel is intentionally kept byte-for-byte compatible with the
+The reference kernel is intentionally kept byte-for-byte compatible with the
 source baseline.  Its pandas typing surface is checked by runtime/integration
 tests; product adapters are checked here with an explicit file list so the
 selection behaves identically on POSIX and Windows path implementations.

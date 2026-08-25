@@ -11,6 +11,7 @@ Item {
     objectName: "appShell"
     required property var backend
     signal openCsvDialog()
+    signal openContentRootDialog()
     property bool compact: width < 1080
     readonly property string currentKey: backend ? backend.currentPage : "home"
     property var navItems: [
@@ -61,6 +62,7 @@ Item {
     }
 
     onOpenCsvDialog: csvDialog.open()
+    onOpenContentRootDialog: contentRootDialog.open()
 
     ConfirmDialog {
         id: overwriteExportDialog
@@ -227,12 +229,14 @@ Item {
                 onNavigate: target => { if (root.backend) root.backend.navigate(target) }
                 onPrimaryAction: (key, target) => {
                     if (key === "import-csv") csvDialog.open()
+                    else if (key === "import-bundled-data" && root.backend) root.backend.importBundledData()
                     else if (key === "import-provider-package") providerDialog.open()
                     else if (key === "export-result") exportDialog.open()
                     else if (root.backend) root.backend.perform(key, target)
                 }
                 onSecondaryAction: (key, target) => {
                     if (key === "import-csv") csvDialog.open()
+                    else if (key === "import-bundled-data" && root.backend) root.backend.importBundledData()
                     else if (key === "import-provider-package") providerDialog.open()
                     else if (key === "export-result") exportDialog.open()
                     else if (key === "choose-content-root") contentRootDialog.open()

@@ -18,7 +18,7 @@ CHANGE = ROOT / "docs/openspec/openspec/changes/quintara-product-experience-v2"
 TASKS = CHANGE / "tasks.md"
 EVIDENCE = ROOT / "docs/V2_EVIDENCE_MATRIX.md"
 OUTPUT = ROOT / "dist/openspec-audit.json"
-ID_RE = re.compile(r"\b([A-Z]{2,5})-(\d{3})(?:\s*[-–—]\s*(\d{3}))?\b")
+ID_RE = re.compile(r"\b(FRC|PPD|DPE|LRO|RRW|DRE)-(\d{3})(?:\s*[-–—]\s*(\d{3}))?\b")
 
 # GitHub's Windows runner defaults stdout to the active legacy code page.  The
 # audit intentionally includes Chinese task descriptions, so emit UTF-8 in both
@@ -98,7 +98,7 @@ def main() -> int:
         "evidence_matrix_present": EVIDENCE.is_file(),
         "all_spec_requirements_mapped": not missing,
         "strict_validation": validation.get("status") == "passed",
-        "expected_task_count": tasks["total"] == 106,
+        "expected_task_count": tasks["total"] == 126,
     }
     evidence = {
         "schema_version": 1,

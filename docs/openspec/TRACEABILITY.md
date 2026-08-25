@@ -6,8 +6,8 @@
 ## v2 产品体验覆盖
 
 `quintara-product-experience-v2` 叠加在 v1 基线上，并记录 2026-08-24 产品所有者补充决定：
-用户首次使用时主动选择 Quintara 供应方维护的比赛生产数据或自己的 CSV，所选数据保存于
-本地并在本机训练；供应方数据可随发行物交付或联网下载，后续由受控 BaoStock 路径更新。
+用户首次使用时主动选择安装包开发者数据、BaoStock 在线初始化或自己的 CSV，所选活动 generation
+保存于本地并在本机训练；三类来源后续都由受控 BaoStock 路径生成只读派生版本。
 
 | 决策与审计范围 | v2 OpenSpec 能力 | 覆盖重点 |
 |---|---|---|
@@ -16,9 +16,10 @@
 | C-070–C-074、C-084–C-089、UI11–UI15、F04–F11 | `desktop-product-experience`, `research-results-workspace` | 股票池表格、100只门禁、Top-5、模式身份、历史和 CSV 导出 |
 | C-079/C-080、UI20/UI21、T23–T30 | `desktop-release-evidence` | Windows/Linux/WSLg 真实窗口、GUI 旅程、视觉回归、安装卸载与脱敏证据 |
 
-v2 的稳定 Requirement ID 为 `FRC-001`–`FRC-005`、`PPD-001`–`PPD-006`、
-`DPE-001`–`DPE-007`、`LRO-001`–`LRO-005`、`RRW-001`–`RRW-005`、
-`DRE-001`–`DRE-005`。
+v2 的稳定 Requirement ID 为 `FRC-001`–`FRC-006`、`PPD-001`–`PPD-011`、
+`DPE-001`–`DPE-007`、`LRO-001`–`LRO-006`、`RRW-001`–`RRW-005`、
+`DRE-001`–`DRE-006`。2026-08-25 BaoStock 补充需求对应 `FRC-004`、`PPD-008`–`PPD-011`、
+`LRO-006` 与 `DRE-002`，覆盖三来源初始化/派生更新、完整交易日、PIT 续接、阶段恢复和双平台旅程。
 
 ## 确认需求 C-xxx
 

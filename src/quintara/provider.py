@@ -15,7 +15,7 @@ from typing import Any
 
 import pandas as pd
 
-from .core import PRODUCT_LABEL_VERSION, UniverseMode, file_hash, now_utc
+from .core import COMPETITION_LABEL_VERSION, PRODUCT_LABEL_VERSION, UniverseMode, file_hash, now_utc
 from .data_lifecycle import DataManager
 from .platform import atomic_json
 
@@ -43,7 +43,8 @@ def validate_dataset_manifest(manifest: dict[str, Any], root: Path, *, platform_
         raise ProviderError("unsupported dataset schema")
     if platform_tag not in manifest["platforms"] and "any" not in manifest["platforms"]:
         raise ProviderError("dataset does not support this platform")
-    if manifest["label_contract"] != PRODUCT_LABEL_VERSION:
+    supported_labels = {PRODUCT_LABEL_VERSION, COMPETITION_LABEL_VERSION}
+    if manifest["label_contract"] not in supported_labels:
         raise ProviderError("dataset label contract is incompatible")
     try:
         mode = UniverseMode(str(manifest["mode"]))
@@ -174,10 +175,31 @@ class ProviderPackageImporter:
                 raise ProviderError("provider package must be a directory or ZIP")
             manifest = json.loads((staging / "dataset-manifest.json").read_text(encoding="utf-8"))
             validate_dataset_manifest(manifest, staging, platform_tag=platform_tag)
-            market = pd.read_csv(staging / "market.csv", parse_dates=["日期"])
-            membership = pd.read_csv(staging / "membership.csv")
-            listing = pd.read_csv(staging / "listing.csv")
-            extra = pd.read_csv(staging / "extra_features.csv") if (staging / "extra_features.csv").exists() else None
+            market = pd.read_csv(
+                staging / "market.csv", parse_dates=["日期"], dtype={"股票代码": str}
+            )
+            membership = pd.read_csv(
+                staging / "membership.csv", dtype={"stock_id": str, "code": str}
+            )
+            listing = pd.read_csv(
+                staging / "listing.csv", dtype={"stock_id": str, "code": str}
+            )
+            extra = (
+                pd.read_csv(
+                    staging / "extra_features.csv",
+                    dtype={"股票代码": str, "code": str},
+                )
+                if (staging / "extra_features.csv").exists()
+                else None
+            )
+            reference_result = None
+            reference_path = staging / "reference-result.csv"
+            if reference_path.is_file():
+                reference_frame = pd.read_csv(reference_path, dtype={"stock_id": str})
+                if list(reference_frame.columns) != ["stock_id", "weight"]:
+                    raise ProviderError("reference result columns must be stock_id,weight")
+                reference_frame["stock_id"] = reference_frame["stock_id"].astype(str).str.zfill(6)
+                reference_result = reference_frame.to_dict(orient="records")
             return self.manager.publish(
                 market,
                 membership,
@@ -190,6 +212,12 @@ class ProviderPackageImporter:
                     "membership_route": manifest["mode"],
                     "license": manifest["license"],
                     "provenance": manifest["source"],
+                    "market_contract": manifest.get("market_contract", {}),
+                    "adjustflag": (manifest.get("market_contract") or {}).get("baostock_adjustflag"),
+                    "unit_contract": (manifest.get("market_contract") or {}).get("units", {}),
+                    "package_location": str(package.resolve()),
+                    "reference_result": reference_result,
+                    "reference_result_sha256": manifest.get("source", {}).get("reference_result_sha256"),
                 },
             )
         except Exception:

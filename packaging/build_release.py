@@ -14,6 +14,14 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def _sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for block in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
 def _artifact_path(name: str) -> Path:
     """Resolve the platform-specific PyInstaller output name."""
     plain = ROOT / "dist" / name
@@ -34,7 +42,7 @@ def main() -> int:
     for name in ("Quintara", "quintara-cli"):
         path = _artifact_path(name)
         if path.is_file():
-            digest = hashlib.sha256(path.read_bytes()).hexdigest()
+            digest = _sha256(path)
             artifacts[path.name] = {"sha256": digest, "bytes": path.stat().st_size}
     metadata = {
         "schema_version": 1,
@@ -44,7 +52,15 @@ def main() -> int:
         "platform": platform.platform(),
         "machine": platform.machine(),
         "artifacts": artifacts,
+        "developer_data": {},
     }
+    developer_data = ROOT / "packaging/developer_data/quintara-developer-data-v1.zip"
+    if developer_data.is_file():
+        metadata["developer_data"] = {
+            "relative_install_path": "data/developer/quintara-developer-data-v1.zip",
+            "sha256": _sha256(developer_data),
+            "bytes": developer_data.stat().st_size,
+        }
     (ROOT / "dist/build-metadata.json").write_text(
         json.dumps(metadata, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )

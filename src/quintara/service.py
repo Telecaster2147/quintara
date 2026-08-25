@@ -13,6 +13,7 @@ import pandas as pd
 
 from .contracts import STRATEGY_POLICIES
 from .core import (
+    COMPETITION_LABEL,
     DEFAULT_LABEL,
     DEFAULT_WEIGHTS,
     AppPaths,
@@ -188,9 +189,23 @@ class QuintaraService:
                     raise ServiceError("active custom universe definition is invalid") from None
         with FileLock(self.paths.lock):
             manifest = self.data.update_baostock(**kwargs)
+        if manifest.get("no_change"):
+            return manifest
         manifest["stale_models"] = self.registry.mark_models_stale_for_data(str(manifest["generation"]))
         self.bootstrap()
         return manifest
+
+    def plan_data_update(self, **kwargs: Any) -> dict[str, Any]:
+        """Build a read-only BaoStock update preview for GUI confirmation."""
+        if kwargs.get("codes") is None:
+            active_universe = self.registry.active_universe()
+            if active_universe is not None and str(active_universe["mode"]) == UniverseMode.CUSTOM_UNIVERSE.value:
+                try:
+                    definition = json.loads(active_universe["definition"])
+                    kwargs["codes"] = list(definition.get("codes", []))
+                except (TypeError, json.JSONDecodeError):
+                    raise ServiceError("active custom universe definition is invalid") from None
+        return self.data.plan_baostock_update(**kwargs)
 
     def search_stocks(self, query: str, *, limit: int = 50) -> list[dict[str, Any]]:
         return self.data.search_baostock(query, limit=limit)
@@ -321,6 +336,11 @@ class QuintaraService:
         market = cast(pd.DataFrame, bundle["market"])
         source_membership = cast(pd.DataFrame, bundle["membership"])
         listing = cast(pd.DataFrame, bundle["listing"])
+        data_manifest = cast(dict[str, Any], bundle["manifest"])
+        data_metadata = cast(dict[str, Any], data_manifest.get("metadata") or {})
+        reference_profile = data_metadata.get("provider_dataset") == "quintara-developer-data-v1"
+        if reference_profile:
+            label_contract = COMPETITION_LABEL
         membership = source_membership if route == UniverseMode.PIT_BASELINE else membership_for_definition(definition, market["日期"].unique())  # type: ignore[index]
         if route != UniverseMode.PIT_BASELINE and definition.get("status_filter") == "exclude_special":
             excluded: set[str] = set()
@@ -363,11 +383,14 @@ class QuintaraService:
         else:
             cfg["lgbm_device_type"] = "cpu"
         cfg["portfolio_rank_weights"] = list(DEFAULT_WEIGHTS)
-        cfg["pit_expected_members"] = int(membership["stock_id"].nunique())
+        cfg["pit_expected_members"] = (
+            int(default_model_config().get("pit_expected_members", 300))
+            if reference_profile and route == UniverseMode.PIT_BASELINE
+            else int(membership["stock_id"].nunique())
+        )
         years = int(cfg.get("training_years", 5))
         if years < 3 or years > 10:
             raise ServiceError("training_years must be between 3 and 10")
-        data_manifest = cast(dict[str, Any], bundle["manifest"])
         cached = self._find_cached_run(
             data_generation=str(data_manifest["generation"]),
             route=route,
@@ -387,15 +410,41 @@ class QuintaraService:
                 context.emit("preparing", "KERNEL_PREPARE", "正在检查数据和标签")
                 context.checkpoint("preparing")
                 prepared = prepare(market, membership, listing, mode=route, config=cfg, contract=label_contract)
-                window_start = prepared.cutoff - pd.DateOffset(years=years)
-                prepared.frame = prepared.frame[pd.to_datetime(prepared.frame["日期"]) >= window_start].copy()
-                prepared.report["training_years"] = years
+                if reference_profile:
+                    prepared.report["training_years"] = "all_available"
+                    prepared.report["reference_profile"] = "bigdata-result-v1"
+                else:
+                    window_start = prepared.cutoff - pd.DateOffset(years=years)
+                    prepared.frame = prepared.frame[pd.to_datetime(prepared.frame["日期"]) >= window_start].copy()
+                    prepared.report["training_years"] = years
                 context.emit("training", "KERNEL_TRAIN", "正在训练模型")
                 context.checkpoint("training")
                 model = train(prepared, mode=route, universe_id=universe_id, config=cfg, source_hash=kernel_source_hash())
                 context.emit("predicting", "KERNEL_PREDICT", "正在生成候选排名")
                 context.checkpoint("predicting")
                 result, ranking = predict(model)
+                if reference_profile:
+                    expected = pd.DataFrame(data_metadata.get("reference_result") or [])
+                    if list(expected.columns) != ["stock_id", "weight"]:
+                        raise ServiceError("开发者数据缺少有效的参考结果闭包")
+                    expected["stock_id"] = expected["stock_id"].astype(str).str.zfill(6)
+                    expected["weight"] = pd.to_numeric(expected["weight"], errors="raise")
+                    actual = result[["stock_id", "weight"]].copy()
+                    actual["stock_id"] = actual["stock_id"].astype(str).str.zfill(6)
+                    actual["weight"] = pd.to_numeric(actual["weight"], errors="raise")
+                    if actual.to_dict(orient="records") != expected.to_dict(orient="records"):
+                        raise ServiceError(
+                            "开发者数据训练结果与参考结果不一致："
+                            f"actual={actual.to_dict(orient='records')} expected={expected.to_dict(orient='records')}"
+                        )
+                    expected_hash = str(data_metadata.get("reference_result_sha256") or "")
+                    actual_hash = content_hash(actual.to_csv(index=False).encode("utf-8"))
+                    if expected_hash and actual_hash != expected_hash:
+                        raise ServiceError(
+                            f"开发者数据结果哈希不一致：{actual_hash} != {expected_hash}"
+                        )
+                    prepared.report["reference_result_match"] = True
+                    prepared.report["reference_result_sha256"] = actual_hash
                 context.emit("publishing", "ARTIFACT_PUBLISH", "正在发布结果")
                 context.checkpoint("publishing")
                 artifact = self._publish_artifacts(run_id, route, universe_id, strategy, cfg, prepared, model, result, ranking, data_manifest, listing)

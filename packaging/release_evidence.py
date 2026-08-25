@@ -66,7 +66,9 @@ def main() -> int:
             "package": "GitHub Actions Package smoke Linux/Windows",
         },
         "artifact_policy": {
-            "historical_market_data_bundled": False,
+            "historical_market_data_bundled": True,
+            "developer_data_location": "data/developer/quintara-developer-data-v1.zip beside the application",
+            "developer_data": evidence_file("packaging/developer_data/quintara-developer-data-v1.zip"),
             "telemetry": False,
             "result_export": "CSV plus adjacent provenance manifest",
         },
@@ -105,7 +107,7 @@ def main() -> int:
         ),
         "known_items": [
             "Windows 10 22H2, WSLg and NVIDIA GPU are best-effort",
-            "production data channel requires recorded redistribution approval and release credentials",
+            "developer data output is checked against its packaged reference result",
         ],
     }
     output = ROOT / "dist/release-evidence.json"

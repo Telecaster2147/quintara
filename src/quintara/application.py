@@ -84,18 +84,44 @@ class ProductUseCases:
             if source_kind == "provider":
                 primary = RecoveryActionDTO("import-provider-package", "导入标准数据包", "data", True)
                 actions = (
+                    RecoveryActionDTO("initialize-baostock", "从 BaoStock 初始化", "data"),
+                    RecoveryActionDTO("import-bundled-data", "使用安装包自带数据", "data"),
                     RecoveryActionDTO("choose-data", "重新选择数据来源", "onboarding"),
                     RecoveryActionDTO("import-csv", "改用自己的 CSV", "data"),
                 )
                 summary = "已选择 Quintara 标准生产数据。请导入安装介质中的数据包，或在可联网环境使用受控更新。"
+            elif source_kind == "bundled":
+                primary = RecoveryActionDTO("import-bundled-data", "导入安装包自带数据", "data", True)
+                actions = (
+                    RecoveryActionDTO("initialize-baostock", "从 BaoStock 初始化", "data"),
+                    RecoveryActionDTO("choose-data", "重新选择数据来源", "onboarding"),
+                    RecoveryActionDTO("import-csv", "选择自己的 CSV", "data"),
+                )
+                summary = "已选择随应用安装的开发者数据。应用会先核对包内文件大小和 SHA-256，再建立活动数据版本。"
+            elif source_kind == "baostock":
+                primary = RecoveryActionDTO("initialize-baostock", "从 BaoStock 一键初始化", "data", True)
+                actions = (
+                    RecoveryActionDTO("import-bundled-data", "离线使用安装包自带数据", "data"),
+                    RecoveryActionDTO("import-csv", "选择自己的 CSV", "data"),
+                    RecoveryActionDTO("choose-data", "重新选择数据来源", "onboarding"),
+                )
+                summary = "连接 BaoStock 后会先显示目标交易日、股票池、字段、预计下载量和保存位置；确认后在暂存区构建完整版本。"
             elif source_kind == "csv":
                 primary = RecoveryActionDTO("import-csv", "选择并检查 CSV", "data", True)
-                actions = (RecoveryActionDTO("choose-data", "重新选择数据来源", "onboarding"),)
+                actions = (
+                    RecoveryActionDTO("initialize-baostock", "从 BaoStock 初始化", "data"),
+                    RecoveryActionDTO("import-bundled-data", "使用安装包自带数据", "data"),
+                    RecoveryActionDTO("choose-data", "重新选择数据来源", "onboarding"),
+                )
                 summary = "已选择自己的 CSV。先完成只读检查，通过后才会复制到本机数据仓库。"
             else:
                 primary = RecoveryActionDTO("choose-data", "选择数据来源", "onboarding", True)
-                actions = (RecoveryActionDTO("import-csv", "导入 CSV", "data"),)
-                summary = "选择 Quintara 标准生产数据，或导入自己的 CSV 后开始本地研究。"
+                actions = (
+                    RecoveryActionDTO("import-bundled-data", "使用安装包自带数据", "data"),
+                    RecoveryActionDTO("initialize-baostock", "从 BaoStock 初始化", "data"),
+                    RecoveryActionDTO("import-csv", "导入 CSV", "data"),
+                )
+                summary = "可选择安装包自带数据、BaoStock 在线初始化或自己的 CSV，三条路径都在发布前完成校验。"
             return PageDTO(
                 key="data",
                 title="研究数据",
@@ -114,6 +140,7 @@ class ProductUseCases:
             {"title": "研究路线", "value": route, "tone": "warning" if route == UniverseMode.NON_PIT_FALLBACK.value else "info"},
             {"title": "占用空间", "value": _bytes(sum(int(item.get("bytes", 0)) for item in active.get("files", {}).values())), "tone": "neutral"},
             {"title": "来源与许可", "value": str(metadata.get("license", active.get("source", "本地导入"))), "tone": "info"},
+            {"title": "最近更新", "value": f"BaoStock · {metadata.get('incremental_sessions', 0)} 个交易日" if metadata.get("connector") == "baostock" else "当前来源版本", "tone": "info"},
         )
         return PageDTO(
             key="data",
@@ -121,8 +148,11 @@ class ProductUseCases:
             eyebrow="活动数据已校验",
             status=PageStatus.READY,
             summary="本地数据已准备完成，可以检查股票池并开始训练。",
-            primary_action=RecoveryActionDTO("update-data", "检查数据更新", "data", True),
-            actions=(RecoveryActionDTO("import-csv", "导入 CSV", "data"),),
+            primary_action=RecoveryActionDTO("update-data", "一键更新至最新交易日", "data", True),
+            actions=(
+                RecoveryActionDTO("import-bundled-data", "重新导入安装包数据", "data"),
+                RecoveryActionDTO("import-csv", "导入 CSV", "data"),
+            ),
             cards=cards,
             technical=_technical(
                 "数据技术详情",
@@ -135,6 +165,11 @@ class ProductUseCases:
                     "integrity": "SHA-256 已校验",
                     "local_path": str(self.service.paths.data_generations / str(active.get("generation"))),
                     "difference": status.get("difference"),
+                    "derived_from_source": metadata.get("derived_from_source"),
+                    "actual_latest_full_session": metadata.get("actual_latest_full_session"),
+                    "adjustflag": metadata.get("adjustflag"),
+                    "unit_contract": metadata.get("unit_contract"),
+                    "checkpoint_identity": metadata.get("checkpoint_identity"),
                 },
             ),
         )
@@ -233,7 +268,7 @@ class ProductUseCases:
         rows = tuple(
             {
                 "rank": index + 1,
-                "name": item.get("name") or item.get("stock_name") or "名称待补充",
+                "name": item.get("name") or item.get("stock_name") or item.get("code_name") or "名称待补充",
                 "code": str(item.get("stock_id", "")).zfill(6),
                 "exchange": item.get("exchange") or "A股",
                 "weight": float(item.get("weight", 0)),
@@ -242,7 +277,12 @@ class ProductUseCases:
                     f"主要影响：{(explanations.get(str(item.get('stock_id', '')).zfill(6)) or [{}])[0].get('feature', '数据特征')}"
                 ),
                 "risk": risk.get(str(item.get("stock_id", "")).zfill(6), {}),
-                "special_status": item.get("status") or item.get("trade_status") or "正常",
+                "special_status": (
+                    "正常"
+                    if str(item.get("status") or item.get("trade_status") or "正常").lower()
+                    in {"1", "normal", "正常"}
+                    else item.get("status") or item.get("trade_status")
+                ),
             }
             for index, item in enumerate(details.get("result_view", []))
         )

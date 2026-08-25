@@ -21,6 +21,12 @@ ScrollView {
     contentWidth: availableWidth
     background: Item {}
 
+    function resetContentPosition() {
+        if (root.contentItem) root.contentItem.contentY = 0
+    }
+    onPageChanged: Qt.callLater(resetContentPosition)
+    Component.onCompleted: Qt.callLater(resetContentPosition)
+
     ColumnLayout {
         width: root.availableWidth
         spacing: Theme.space3
@@ -127,6 +133,56 @@ ScrollView {
             visible: Boolean(root.page && root.page.rows && root.page.rows.length > 0)
             rows: root.page && root.page.rows ? root.page.rows : []
             searchable: Boolean(root.page && (root.page.key === "universe" || root.page.key === "history"))
+        }
+
+        ColumnLayout {
+            Layout.fillWidth: true
+            visible: Boolean(root.page && root.page.path_rows && root.page.path_rows.length > 0)
+            spacing: Theme.space1
+
+            Text {
+                text: qsTr("当前路径")
+                color: Theme.textPrimary
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.sectionSize
+                font.weight: Font.DemiBold
+            }
+            Repeater {
+                model: root.page && root.page.path_rows ? root.page.path_rows : []
+                delegate: Frame {
+                    id: pathDelegate
+                    required property var modelData
+                    Layout.fillWidth: true
+                    padding: Theme.space2
+                    background: Rectangle {
+                        color: Theme.surfaceRaised
+                        radius: Theme.radiusSmall
+                        border.color: Theme.outline
+                    }
+                    contentItem: ColumnLayout {
+                        spacing: 4
+                        Text {
+                            text: pathDelegate.modelData.label || qsTr("路径")
+                            color: Theme.textMuted
+                            font.family: Theme.fontFamily
+                            font.pixelSize: Theme.captionSize
+                        }
+                        TextEdit {
+                            Layout.fillWidth: true
+                            text: pathDelegate.modelData.path || ""
+                            readOnly: true
+                            selectByMouse: true
+                            wrapMode: TextEdit.WrapAnywhere
+                            color: Theme.textPrimary
+                            selectionColor: Theme.primary
+                            selectedTextColor: Theme.textOnPrimary
+                            font.family: Theme.fontFamily
+                            font.pixelSize: Theme.bodySize
+                            Accessible.name: qsTr("%1：%2").arg(pathDelegate.modelData.label || qsTr("路径")).arg(text)
+                        }
+                    }
+                }
+            }
         }
 
         EmptyState {

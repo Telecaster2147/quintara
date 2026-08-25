@@ -9,7 +9,7 @@
 - 变更：[`quintara-product-experience-v2`](openspec/changes/quintara-product-experience-v2/)
 - 工作流：`spec-driven`
 - 状态：4/4 规划工件完成，严格校验通过，等待独立的实施轮次
-- 范围：供应方比赛生产数据/用户 CSV 的首次选择与本地训练、Qt Quick/QML 产品体验、
+- 范围：开发者参考数据/用户 CSV 的首次选择与本地训练、Qt Quick/QML 产品体验、
   长任务恢复、结果工作区、Quintara 品牌图标、Windows GUI/CLI 双入口和真实跨平台 GUI 发布证据
 
 ## 已有基线

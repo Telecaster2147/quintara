@@ -3,6 +3,7 @@ from __future__ import annotations
 import io
 import json
 import os
+import zipfile
 from pathlib import Path
 
 import pandas as pd
@@ -11,6 +12,7 @@ from hypothesis import given
 from hypothesis import strategies as st
 
 from quintara import doctor
+from quintara.bundled_data import developer_data_package, developer_data_summary
 from quintara.core import PRODUCT_LABEL_VERSION, AppPaths, file_hash
 from quintara.display import detect_display_environment
 from quintara.jobs import JobCancelled, JobContext, JobCoordinator, progress_snapshot
@@ -90,6 +92,12 @@ def test_versioned_consent_and_resumable_five_step_onboarding(app_root):
         assert flow.advance(4)["completed"]
         assert flow.reopen()["step"] == 0
         assert flow.skip()["skipped"]
+        bundled = DataSourceChoice("bundled", accepted_license=True)
+        bundled.validate()
+        DataSourceChoice("baostock").validate()
+        with pytest.raises(ValueError, match="package notice"):
+            DataSourceChoice("bundled").validate()
+        assert len(consent_record("test")["sections"]) == 5
     finally:
         service.close()
 
@@ -243,7 +251,35 @@ def test_packaging_has_distinct_gui_and_cli_subsystems_and_icon():
     assert "from .qml_gui import launch" in cli_source and "from .gui import launch" not in cli_source
     assert 'f"{name}.exe"' in release_builder and "artifacts[path.name]" in release_builder
     assert "SetupIconFile" in installer and "Parameters: \"gui\"" not in installer
+    assert "developer_data\\quintara-developer-data-v1.zip" in installer
+    assert "DestDir: \"{app}\\data\\developer\"" in installer
     assert (root / "src/quintara/assets/icons/quintara.ico").read_bytes()[:4] == b"\x00\x00\x01\x00"
+
+
+def test_developer_data_sidecar_is_complete_and_reference_bound():
+    package = developer_data_package()
+    assert package is not None and package.is_file()
+    summary = developer_data_summary()
+    assert summary["dataset_id"] == "quintara-developer-data-v1"
+    assert summary["market_bytes"] > 250_000_000
+    with zipfile.ZipFile(package) as archive:
+        manifest = json.loads(archive.read("dataset-manifest.json"))
+        reference = archive.read("reference-result.csv")
+    assert manifest["pit"]["expected_members"] == 300
+    assert manifest["source"]["reference_result_sha256"] == file_hash(
+        Path(__file__).parents[2] / "bigdata/app/output/result.csv"
+    )
+    assert reference == (Path(__file__).parents[2] / "bigdata/app/output/result.csv").read_bytes()
+
+
+def test_source_tree_does_not_embed_a_developer_home_path():
+    root = Path(__file__).parents[1] / "src"
+    source = "\n".join(
+        path.read_text(encoding="utf-8")
+        for path in root.rglob("*")
+        if path.is_file() and path.suffix in {".py", ".qml", ".json"}
+    )
+    assert "/home/olm" not in source
 
 
 def test_release_gates_pin_linux_abi_and_windows_upgrade_contract():
@@ -256,6 +292,7 @@ def test_release_gates_pin_linux_abi_and_windows_upgrade_contract():
     assert "upgrade_preserves_data" in install_smoke
     assert "uninstall_preserves_data_by_default" in install_smoke
     assert "for ($sample = 0; $sample -lt 16; $sample++)" in install_smoke
+    assert "developer_data_beside_app = $developerDataInstalled" in install_smoke
     assert "for ($sample = 0; $sample -lt 16; $sample++)" in (root / "packaging/windows/smoke.ps1").read_text(encoding="utf-8")
     assert "--strict" in candidate and "native_matrix_passed" in candidate
 
@@ -278,6 +315,9 @@ def test_native_platform_workflow_has_hosted_windows_and_aggregate_evidence():
     assert "/tmp/quintara-wheel-smoke/bin/quintara-gui" in package_workflow
     assert "{'Quintara.exe','quintara-cli.exe'}" in workflow
     assert "{'Quintara.exe','quintara-cli.exe'}" in package_workflow
+    assert "Quintara-Windows-x64-Portable.zip" in package_workflow
+    assert "Quintara-Windows-x64-Portable.exe" not in package_workflow
+    assert "data/developer" in package_workflow
 
 
 def test_linux_install_publishes_hicolor_icon_family():
@@ -286,6 +326,8 @@ def test_linux_install_publishes_hicolor_icon_family():
     assert 'for size in 16 20 24 32 48 64 128 256' in script
     assert 'hicolor/${size}x${size}/apps' in script
     assert 'quintara-${size}.png' in script
+    assert 'lib/quintara/data/developer' in script
+    assert 'quintara-developer-data-v1.zip' in script
 
 
 def test_legacy_scan_is_read_only_and_marks_incomplete_identity(tmp_path):

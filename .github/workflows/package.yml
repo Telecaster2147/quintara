@@ -34,11 +34,16 @@ jobs:
       - run: uv build
       - run: uv run pytest -q --junitxml=dist/pytest.xml
       - run: QT_QPA_PLATFORM=offscreen uv run python packaging/linux_user_journey.py
+      - run: QT_QPA_PLATFORM=offscreen uv run python packaging/baostock_gui_journey.py
       - run: uv run python packaging/performance_evidence.py
       - run: uv run python packaging/production_scale_benchmark.py
       - run: QT_QPA_PLATFORM=offscreen uv run python packaging/visual_matrix.py
       - run: uv run python packaging/single_instance_smoke.py
       - run: uv run python packaging/build_release.py
+      - name: Stage developer data beside Linux bundles
+        run: |
+          mkdir -p dist/data/developer
+          cp packaging/developer_data/quintara-developer-data-v1.zip packaging/developer_data/README.txt dist/data/developer/
       - run: uv run python packaging/elf_compat_audit.py --max-glibc 2.35
       - run: uv run python packaging/sbom.py
       - run: uv run python packaging/icon_release_audit.py
@@ -79,7 +84,13 @@ jobs:
         run: npm install --global @fission-ai/openspec@1.9.0
       - run: uv build
       - run: uv run pytest -q --junitxml=dist/pytest.xml
+      - run: uv run python packaging/baostock_gui_journey.py
       - run: uv run python packaging/build_release.py
+      - name: Stage developer data beside Windows bundles
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist/data/developer | Out-Null
+          Copy-Item packaging/developer_data/quintara-developer-data-v1.zip,packaging/developer_data/README.txt dist/data/developer/
       - run: uv run python -c "import json; a=json.load(open('dist/build-metadata.json'))['artifacts']; assert {'Quintara.exe','quintara-cli.exe'} <= set(a)"
       - run: uv run python packaging/sbom.py
       - run: uv run python packaging/icon_release_audit.py
@@ -116,10 +127,12 @@ jobs:
           mkdir release
           cp artifacts/quintara-windows-${GITHUB_SHA}/installer/Quintara-*-windows-x64.exe \
             release/Quintara-Windows-x64-Setup.exe
-          cp "artifacts/quintara-windows-${GITHUB_SHA}/Quintara.exe" \
-            release/Quintara-Windows-x64-Portable.exe
+          mkdir -p portable/data/developer
+          cp "artifacts/quintara-windows-${GITHUB_SHA}/Quintara.exe" portable/Quintara.exe
+          cp artifacts/quintara-windows-${GITHUB_SHA}/data/developer/* portable/data/developer/
+          (cd portable && zip -qr ../release/Quintara-Windows-x64-Portable.zip .)
           tar -C "artifacts/quintara-linux-${GITHUB_SHA}" -czf \
-            release/Quintara-Linux-x86_64.tar.gz Quintara quintara-cli
+            release/Quintara-Linux-x86_64.tar.gz Quintara quintara-cli data/developer
           (cd release && sha256sum * > SHA256SUMS.txt)
       - name: Attach installers to the release
         env:

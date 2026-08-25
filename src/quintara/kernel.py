@@ -4,6 +4,7 @@ from __future__ import annotations
 import hashlib
 import importlib
 import json
+import os
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -24,14 +25,21 @@ from .core import (
     file_hash,
 )
 
-SOURCE_ROOT = Path("/home/olm/bigdata/bigdata/app/code/src")
+KERNEL_SOURCE_ENV = "QUINTARA_KERNEL_SOURCE"
+MODEL_CONFIG_ENV = "QUINTARA_MODEL_CONFIG"
+
+
+def _optional_path(name: str) -> Path | None:
+    """Resolve an explicit developer override without embedding machine paths."""
+    value = os.environ.get(name, "").strip()
+    return Path(value).expanduser().resolve() if value else None
 
 
 def _source_modules() -> tuple[Any, Any, Any]:
     """Load the vendored kernel in installed builds, source modules in development.
 
     The source tree remains the authority during development; the package ships a
-    copy so a user does not need the competition checkout on their machine.
+    copy so a user does not need the reference checkout on their machine.
     """
     try:
         data = importlib.import_module("quintara._kernel.data")
@@ -39,7 +47,12 @@ def _source_modules() -> tuple[Any, Any, Any]:
         return data, utils, None
     except ModuleNotFoundError:
         pass
-    source = str(SOURCE_ROOT)
+    source_root = _optional_path(KERNEL_SOURCE_ENV)
+    if source_root is None:
+        raise ModuleNotFoundError(
+            "packaged kernel modules are missing; set QUINTARA_KERNEL_SOURCE for a developer checkout"
+        )
+    source = str(source_root)
     if source not in sys.path:
         sys.path.insert(0, source)
     data = importlib.import_module("data")
@@ -67,9 +80,13 @@ class TrainedModel:
 
 def default_model_config() -> dict[str, Any]:
     bundled = Path(__file__).with_name("model_config.json")
-    source_path = Path("/home/olm/bigdata/bigdata/app/model/model_config.json")
-    config_path = bundled if bundled.exists() else source_path
-    config = json.loads(config_path.read_text(encoding="utf-8")) if config_path.exists() else {}
+    developer_config = _optional_path(MODEL_CONFIG_ENV)
+    config_path = bundled if bundled.exists() else developer_config
+    config = (
+        json.loads(config_path.read_text(encoding="utf-8"))
+        if config_path is not None and config_path.exists()
+        else {}
+    )
     config.update({"lgbm_label_mode": "competition", "lgbm_selection_mode": "fixed_rounds", "lgbm_fixed_rounds": int(config.get("lgbm_fixed_rounds", 128)), "portfolio_rank_weights": list(DEFAULT_WEIGHTS)})
     return config
 
@@ -124,12 +141,21 @@ def prepare(market: pd.DataFrame, membership: pd.DataFrame, listing: pd.DataFram
     data, _, _ = _source_modules()
     cfg = default_model_config()
     cfg.update(config or {})
-    cfg["pit_expected_members"] = int(membership["stock_id"].nunique())
+    if not config or "pit_expected_members" not in config:
+        cfg["pit_expected_members"] = int(membership["stock_id"].nunique())
     # The source production gate currently recognizes its historical member file as CSI300.
     membership = membership.copy()
     membership["index_code"] = "CSI300"
     prepared_frame, features, cutoff, report = data.prepare_model_data(market, membership, listing, cfg)
-    frame = _apply_product_label(prepared_frame, market, contract=contract)
+    # The vendored pipeline already computes the reference open/open label over
+    # complete legal market history before PIT rows are selected. Preserve it
+    # byte-for-byte for the reference profile; only the product close/open
+    # contract needs the adapter's alternate label calculation.
+    frame = (
+        prepared_frame.copy()
+        if contract == COMPETITION_LABEL
+        else _apply_product_label(prepared_frame, market, contract=contract)
+    )
     report = dict(report)
     report.update({"route": mode.value, "label_contract": contract, "label_version": PRODUCT_LABEL_VERSION if contract == DEFAULT_LABEL else COMPETITION_LABEL_VERSION, "kernel_version": PRODUCT_LABEL_VERSION if contract == DEFAULT_LABEL else COMPETITION_LABEL_VERSION, "membership_hash": content_hash(membership.to_dict(orient="records")), "listing_hash": content_hash(listing.to_dict(orient="records")), "calendar_hash": content_hash(sorted(pd.to_datetime(market["日期"]).dt.normalize().astype(str).unique().tolist()))})
     return PreparedData(frame, features, cutoff, report, hashlib.sha256(_market_bytes(market)).hexdigest())

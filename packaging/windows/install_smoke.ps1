@@ -22,10 +22,12 @@ if ($install.ExitCode -ne 0) { throw "Installer returned $($install.ExitCode)" }
 
 $gui = Join-Path $installDir "Quintara.exe"
 $cli = Join-Path $installDir "quintara-cli.exe"
+$developerData = Join-Path $installDir "data\developer\quintara-developer-data-v1.zip"
 $uninstaller = Join-Path $installDir "unins000.exe"
-foreach ($path in @($gui, $cli, $uninstaller)) {
+foreach ($path in @($gui, $cli, $developerData, $uninstaller)) {
     if (-not (Test-Path $path)) { throw "Installed path missing: $path" }
 }
+$developerDataInstalled = Test-Path $developerData
 
 $version = & $cli --version
 if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($version)) { throw "Installed CLI version failed" }
@@ -94,4 +96,6 @@ if (Test-Path $defaultMarker) { Remove-Item -Force $defaultMarker }
     data_marker = (Test-Path (Join-Path $dataDir "install-smoke.marker"))
     icon_cache_refresh = $true
     no_console_processes = $true
+    developer_data_beside_app = $developerDataInstalled
+    developer_data_removed_with_app = -not (Test-Path $developerData)
 } | ConvertTo-Json -Depth 3

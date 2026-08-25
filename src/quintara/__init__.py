@@ -1,7 +1,7 @@
 """Quintara: local A-share weekly research application."""
 from __future__ import annotations
 
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 
 
 def main() -> int:

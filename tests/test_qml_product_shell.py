@@ -110,6 +110,24 @@ def test_onboarding_source_resumes_with_backend_state(app_root):
         service.close()
 
 
+def test_baostock_is_visible_as_third_source_and_update_has_preview_contract(app_root):
+    service = QuintaraService(app_root)
+    try:
+        service.confirm_consent()
+        backend = QmlBackend(ProductUseCases(service))
+        backend.advanceOnboarding(2, "baostock", True, False, False)
+        assert backend.onboardingSource == "baostock"
+        onboarding = (qml_root() / "Quintara/components/OnboardingDialog.qml").read_text(encoding="utf-8")
+        main = (qml_root() / "main.qml").read_text(encoding="utf-8")
+        assert "BaoStock 在线初始化" in onboarding
+        assert "安装包自带数据" in onboarding
+        assert "我自己的 CSV" in onboarding
+        for key in ("target_cutoff", "stock_count", "adjustflag", "disk_required_bytes", "content_root"):
+            assert key in main
+    finally:
+        service.close()
+
+
 def test_onboarding_source_summary_and_file_url_helpers(app_root, tmp_path):
     service = QuintaraService(app_root)
     try:
@@ -122,6 +140,9 @@ def test_onboarding_source_summary_and_file_url_helpers(app_root, tmp_path):
         target.write_text("fixture", encoding="utf-8")
         assert backend.exportDestinationExists(target.as_uri())
         assert backend._local_path(target.as_uri()) == target
+        assert backend.pathSummary["content_root"] == str(app_root)
+        assert "developer_data" in backend.pathSummary["bundled_data"]
+        assert len(backend.onboardingDisclosures) == 5
     finally:
         service.close()
 
