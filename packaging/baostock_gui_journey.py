@@ -151,6 +151,12 @@ def journey(app: QGuiApplication, source: str, root: Path) -> dict[str, Any]:
 
 
 def main() -> int:
+    # GitHub's Windows runner may expose a cp1252 console.  The evidence is
+    # intentionally user-facing and contains Chinese labels, so emit it as
+    # UTF-8 rather than letting the console encoding decide whether the
+    # journey can finish.
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
     sys.modules["baostock"] = provider_fixture()
     app = QGuiApplication.instance() or QGuiApplication([])
     with tempfile.TemporaryDirectory(prefix="quintara-three-source-") as temporary:
