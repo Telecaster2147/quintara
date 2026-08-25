@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import io
 import json
 import os
@@ -266,10 +267,12 @@ def test_developer_data_sidecar_is_complete_and_reference_bound():
         manifest = json.loads(archive.read("dataset-manifest.json"))
         reference = archive.read("reference-result.csv")
     assert manifest["pit"]["expected_members"] == 300
-    assert manifest["source"]["reference_result_sha256"] == file_hash(
-        Path(__file__).parents[2] / "bigdata/app/output/result.csv"
-    )
-    assert reference == (Path(__file__).parents[2] / "bigdata/app/output/result.csv").read_bytes()
+    expected = "e61f54a070e3c5ac331cf198c620757a49711268d44b4c1e4451f2dd86b2ecd6"
+    assert manifest["source"]["reference_result_sha256"] == expected
+    assert hashlib.sha256(reference).hexdigest() == expected
+    local_reference = Path(__file__).parents[2] / "bigdata/app/output/result.csv"
+    if local_reference.is_file():
+        assert reference == local_reference.read_bytes()
 
 
 def test_source_tree_does_not_embed_a_developer_home_path():
